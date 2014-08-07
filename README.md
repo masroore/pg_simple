@@ -1,4 +1,4 @@
-pg_simple
+#pg_simple
 =========
 
-A simple wrapper over psycopg2 with support for common SQL functions
+An ultra simple wrapper for Python psycopg2 with support for basic SQL functionality
