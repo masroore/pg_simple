@@ -11,9 +11,9 @@ from psycopg2.extras import DictCursor, NamedTupleCursor
 
 
 class PgSimple(object):
-    _conn = None
-    _cur = None
-    _conf = None
+    _connection = None
+    _cursor = None
+    _config = None
     _dsn = None
     _log = None
     _log_fmt = None
@@ -22,8 +22,8 @@ class PgSimple(object):
     def __init__(self, **kwargs):
         self._dsn = kwargs.get('dsn', None)
         if not self._dsn:
-            self._conf = kwargs
-            self._conf['host'] = kwargs.get('host', 'localhost')
+            self._config = kwargs
+            self._config['host'] = kwargs.get('host', 'localhost')
 
         self._log = kwargs.get('log', None)
         self._log_fmt = kwargs.get('log_fmt', None)
@@ -59,14 +59,14 @@ class PgSimple(object):
 
         try:
             if self._dsn:
-                self._conn = psycopg2.connect(self._dsn)
+                self._connection = psycopg2.connect(self._dsn)
             else:
-                self._conn = psycopg2.connect(database=self._conf['database'],
-                                              host=self._conf.get('host'),
-                                              port=self._conf.get('port'),
-                                              user=self._conf.get('user'),
-                                              password=self._conf.get('password'))
-            self._cur = self._conn.cursor(cursor_factory=self._cursor_factory)
+                self._connection = psycopg2.connect(database=self._config['database'],
+                                              host=self._config.get('host'),
+                                              port=self._config.get('port'),
+                                              user=self._config.get('user'),
+                                              password=self._config.get('password'))
+            self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)
         except Exception, e:
             self._log_error('postgresql connection failed: ' + e.message)
             raise
@@ -106,7 +106,7 @@ class PgSimple(object):
             tables = (table1, table2)
             fields = ([fields from table1], [fields from table 2])  # fields to select
             join_fields = (field1, field2)  # fields to join. field1 belongs to table1 and field2 belongs to table 2
-            where = ("parameterizedstatement", [parameters])
+            where = ("parameterized_statement", [parameters])
                     eg: ("id=%s and name=%s", [1, "test"])
             order = [field, ASC|DESC]
             limit = [limit1, limit2]
@@ -162,16 +162,16 @@ class PgSimple(object):
 
         try:
             if self._log and self._log_fmt:
-                self._cur.timestamp = time.time()
-            self._cur.execute(sql, params)
+                self._cursor.timestamp = time.time()
+            self._cursor.execute(sql, params)
             if self._log and self._log_fmt:
-                self._log_debug(self._cur)
+                self._log_debug(self._cursor)
         except Exception, e:
             if self._log and self._log_fmt:
                 self._log_error('execute() failed: ' + e.message)
             raise
 
-        return self._cur
+        return self._cursor
 
     def drop(self, table):
         """Drop a table"""
@@ -179,20 +179,23 @@ class PgSimple(object):
 
     def commit(self):
         """Commit a transaction"""
-        return self._conn.commit()
+        return self._connection.commit()
 
     def rollback(self):
-        """Rolls back a transaction"""
-        return self._conn.rollback()
+        """Roll-back a transaction"""
+        return self._connection.rollback()
 
+    @property
     def is_open(self):
         """Check if the connection is open"""
-        return self._conn.open
+        return self._connection.open
 
     def close(self):
         """Kill the connection"""
-        self._cur.close()
-        self._conn.close()
+        self._cursor.close()
+        self._cursor = None
+        self._connection.close()
+        self._connection = None
 
     def _serialize_insert(self, data):
         """Format insert dict values into strings"""
@@ -210,7 +213,6 @@ class PgSimple(object):
             return ' WHERE %s' % where[0]
         return ''
 
-
     def _order(self, order=None):
         sql = ''
         if order:
@@ -220,18 +222,15 @@ class PgSimple(object):
                 sql += ' %s' % order[1]
         return sql
 
-
     def _limit(self, limit):
         if limit:
             return ' LIMIT %d' % limit
         return ''
 
-
     def _offset(self, offset):
         if offset:
             return ' OFFSET %d' % offset
         return ''
-
 
     def _select(self, table=None, fields=(), where=None, order=None, limit=None, offset=None):
         """Run a select query"""
