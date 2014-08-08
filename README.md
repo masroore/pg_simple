@@ -39,9 +39,11 @@ db = pg_simple.PgSimple(host='127.0.0.1',
 >>> db.execute('SELECT tablename FROM pg_tables WHERE schemaname=%s and tablename=%s', ['public', 'books'])
 <cursor object at 0x102352a50; closed: 0>
 
->>> db.execute('DROP TABLE IF EXISTS "books"')
+# Setting up test database...
 
->>> db.execute('''CREATE TABLE "books" (
+db.execute('DROP TABLE IF EXISTS "books"')
+
+db.execute('''CREATE TABLE "books" (
 	"id" SERIAL NOT NULL,
 	"genre" VARCHAR(20) NOT NULL,
 	"name" VARCHAR(40) NOT NULL,
@@ -50,7 +52,7 @@ db = pg_simple.PgSimple(host='127.0.0.1',
 	"modified" TIMESTAMP(6) NOT NULL DEFAULT now()
 )''')
 
->>> db.execute('''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")''')
+db.execute('''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")''')
 ```
 
 ### Inserting a row:
@@ -73,7 +75,7 @@ with pg_simple.PgSimple(dsn='dbname=pg_simple user=postgres') as db1:
     db1.update('books',
                data={'name': 'An expensive book',
                      'price': 998.997,
-                     'type': 'hardback',
+                     'genre': 'non-fiction',
                      'modified': 'NOW()'},
                where=('published = %s', [datetime.date(2001, 1, 1)]))
                
