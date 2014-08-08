@@ -97,7 +97,9 @@ print(book.name + 'was published on ' + book[1])
 books = db.fetchall('books',
                     fields=['name AS n', 'genre AS g'],
                     where=('published BETWEEN %s AND %s', [datetime.date(2005, 2, 1), datetime.date(2009, 2, 1)]),
-                    order=['published', 'DESC'])
+                    order=['published', 'DESC'], 
+                    limit=5, 
+                    offset=2)
 
 for book in books:
     print(book.n + 'belongs to ' + book[1])
