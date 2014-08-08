@@ -1,5 +1,4 @@
-#pg_simple
-=========
+# pg_simple
 
 An ultra simple wrapper over Python psycopg2 with support for basic SQL functionality.
 
@@ -103,4 +102,3 @@ books = db.fetchall('books',
 for book in books:
     print(book.n + 'belongs to ' + book[1])
 ```
-
