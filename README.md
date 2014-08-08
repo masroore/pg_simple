@@ -20,7 +20,7 @@ Or from the source:
 
 ### Connecting to the posgtresql server:
 
-```
+```python
 import sys
 from pg_simple import PgSimple
 
@@ -35,7 +35,7 @@ db = pg_simple.PgSimple(host='127.0.0.1',
 
 ### Raw SQL execution:
 
-```
+```python
 >>> db.execute('SELECT tablename FROM pg_tables WHERE schemaname=%s and tablename=%s', ['public', 'books'])
 <cursor object at 0x102352a50; closed: 0>
 
@@ -55,7 +55,7 @@ db = pg_simple.PgSimple(host='127.0.0.1',
 
 ### Inserting a row:
 
-```
+```python
 for i in range(1, 10):
     db.insert("books",
               {"genre": "fiction",
@@ -68,7 +68,7 @@ db.commit()
 
 ### Updating rows:
 
-```
+```python
 with pg_simple.PgSimple(dsn='dbname=pg_simple user=postgres') as db1:
     db1.update('books',
                data={'name': 'An expensive book',
@@ -83,7 +83,7 @@ with pg_simple.PgSimple(dsn='dbname=pg_simple user=postgres') as db1:
 
 ### Fetching a single record:
 
-```
+```python
 book = db.fetchone('books', 
                    fields=['name', 'published'], 
                    where=('published = %s', [datetime.date(2002, 2, 1)]))
@@ -93,7 +93,7 @@ print(book.name + 'was published on ' + book[1])
 
 ### Fetching multiple records:
 
-```
+```python
 books = db.fetchall('books',
                     fields=['name AS n', 'genre AS g'],
                     where=('published BETWEEN %s AND %s', [datetime.date(2005, 2, 1), datetime.date(2009, 2, 1)]),
