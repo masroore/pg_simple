@@ -205,36 +205,47 @@ class PgSimple(object):
         """Format update dict values into string"""
         return "=%s,".join(data.keys()) + "=%s"
 
-    def _select(self, table=None, fields=(), where=None, order=None, limit=None, offset=None):
-        """Run a select query"""
-
-        sql = "SELECT %s FROM %s" % (",".join(fields), table)
-
-        # where conditions
+    def _where(self, where=None):
         if where and len(where) > 0:
-            sql += " WHERE %s" % where[0]
+            return ' WHERE %s' % where[0]
+        return ''
 
-        # order
+
+    def _order(self, order=None):
+        sql = ''
         if order:
-            sql += " ORDER BY %s" % order[0]
+            sql += ' ORDER BY %s' % order[0]
 
             if len(order) > 1:
-                sql += " %s" % order[1]
+                sql += ' %s' % order[1]
+        return sql
 
-        # limit
+
+    def _limit(self, limit):
         if limit:
-            sql += " LIMIT %d" % limit
+            return ' LIMIT %d' % limit
+        return ''
 
-            if offset:
-                sql += " OFFSET %d" % offset
 
-        return self.execute(sql, where[1] if where and len(where) > 1 else None)
+    def _offset(self, offset):
+        if offset:
+            return ' OFFSET %d' % offset
+        return ''
+
+
+    def _select(self, table=None, fields=(), where=None, order=None, limit=None, offset=None):
+        """Run a select query"""
+        sql = 'SELECT %s FROM %s' % (",".join(fields), table) \
+              + self._where(where) \
+              + self._order(order) \
+              + self._limit(limit) \
+              + self._offset(offset)
+        return self.execute(sql, where[1] if where and len(where) == 2 else None)
 
     def _join(self, tables=(), fields=(), join_fields=(), where=None, order=None, limit=None, offset=None):
         """Run an inner left join query"""
 
-        fields = [tables[0] + "." + f for f in fields[0]] + \
-                 [tables[1] + "." + f for f in fields[1]]
+        fields = [tables[0] + "." + f for f in fields[0]] + [tables[1] + "." + f for f in fields[1]]
 
         sql = 'SELECT {0:s} FROM {1:s} LEFT JOIN {2:s} ON ({3:s} = {4:s})'.format(
             ','.join(fields),
@@ -243,23 +254,7 @@ class PgSimple(object):
             '{0}.{1}'.format(tables[0], join_fields[0]),
             '{0}.{1}'.format(tables[1], join_fields[1]))
 
-        # where conditions
-        if where and len(where) > 0:
-            sql += " WHERE %s" % where[0]
-
-        # order
-        if order:
-            sql += " ORDER BY %s" % order[0]
-
-            if len(order) > 1:
-                sql += " " + order[1]
-
-        # limit
-        if limit:
-            sql += " LIMIT %d" % limit
-
-            if offset:
-                sql += " OFFSET %d" % offset
+        sql += self._where(where) + self._order(order) + self._limit(limit) + self._offset(offset)
 
         return self.execute(sql, where[1] if where and len(where) > 1 else None)
 
