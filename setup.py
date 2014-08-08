@@ -7,8 +7,6 @@ with open("README.md") as stream: long_description = stream.read()
 setup(
     name=pg_simple.__name__,
     version=pg_simple.VERSION,
-    name="pg_simple",
-    version="0.1",
     packages=find_packages(),
     install_requires=['psycopg2'],
     classifiers=["Topic :: Database",
