@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 
-__author__ = 'masroor ehsan'
+__author__ = 'Masroor Ehsan'
 
 from collections import namedtuple
 import logging
