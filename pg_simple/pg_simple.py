@@ -71,37 +71,36 @@ class PgSimple(object):
             self._log_error('postgresql connection failed: ' + e.message)
             raise
 
-    def fetchone(self, table=None, fields='*', where=None, order=None, limit=(0, 1)):
+    def fetchone(self, table, fields='*', where=None, order=None, offset=None):
         """Get a single result
 
             table = (str) table_name
             fields = (field1, field2 ...) list of fields to select
-            where = ("parameterizedstatement", [parameters])
+            where = ("parameterized_statement", [parameters])
                     eg: ("id=%s and name=%s", [1, "test"])
             order = [field, ASC|DESC]
-            limit = [limit1, limit2]
         """
 
-        cur = self._select(table, fields, where, order, limit)
+        cur = self._select(table, fields, where, order, 1, offset)
         result = cur.fetchone()
         return result
 
-    def fetchall(self, table=None, fields='*', where=None, order=None, limit=None):
+    def fetchall(self, table, fields='*', where=None, order=None, limit=None, offset=None):
         """Get all results
 
             table = (str) table_name
             fields = (field1, field2 ...) list of fields to select
-            where = ("parameterizedstatement", [parameters])
+            where = ("parameterized_statement", [parameters])
                     eg: ("id=%s and name=%s", [1, "test"])
             order = [field, ASC|DESC]
-            limit = [limit1, limit2]
+            limit = [limit, offset]
         """
 
-        cur = self._select(table, fields, where, order, limit)
+        cur = self._select(table, fields, where, order, limit, offset)
         result = cur.fetchall()
         return result
 
-    def join(self, tables=(), fields=(), join_fields=(), where=None, order=None, limit=None):
+    def join(self, tables=(), fields=(), join_fields=(), where=None, order=None, limit=None, offset=None):
         """Run an inner left join query
 
             tables = (table1, table2)
@@ -113,7 +112,7 @@ class PgSimple(object):
             limit = [limit1, limit2]
         """
 
-        cur = self._join(tables, fields, join_fields, where, order, limit)
+        cur = self._join(tables, fields, join_fields, where, order, limit, offset)
         result = cur.fetchall()
 
         rows = None
@@ -206,7 +205,7 @@ class PgSimple(object):
         """Format update dict values into string"""
         return "=%s,".join(data.keys()) + "=%s"
 
-    def _select(self, table=None, fields=(), where=None, order=None, limit=None):
+    def _select(self, table=None, fields=(), where=None, order=None, limit=None, offset=None):
         """Run a select query"""
 
         sql = "SELECT %s FROM %s" % (",".join(fields), table)
@@ -224,15 +223,14 @@ class PgSimple(object):
 
         # limit
         if limit:
-            if limit[0] > 0:
-                sql += " LIMIT %s" % limit[0]
+            sql += " LIMIT %d" % limit
 
-                if len(limit) > 1:
-                    sql += " OFFSET %s" % limit[1]
+            if offset:
+                sql += " OFFSET %d" % offset
 
         return self.execute(sql, where[1] if where and len(where) > 1 else None)
 
-    def _join(self, tables=(), fields=(), join_fields=(), where=None, order=None, limit=None):
+    def _join(self, tables=(), fields=(), join_fields=(), where=None, order=None, limit=None, offset=None):
         """Run an inner left join query"""
 
         fields = [tables[0] + "." + f for f in fields[0]] + \
@@ -258,10 +256,10 @@ class PgSimple(object):
 
         # limit
         if limit:
-            sql += " LIMIT %s" % limit[0]
+            sql += " LIMIT %d" % limit
 
-            if len(limit) > 1:
-                sql += ", %s" % limit[1]
+            if offset:
+                sql += " OFFSET %d" % offset
 
         return self.execute(sql, where[1] if where and len(where) > 1 else None)
 
