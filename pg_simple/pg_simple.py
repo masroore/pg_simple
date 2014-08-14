@@ -14,16 +14,19 @@ class PgSimple(object):
     _connection = None
     _cursor = None
     _config = None
+    _pool = None
     _dsn = None
     _log = None
     _log_fmt = None
     _cursor_factory = None
 
     def __init__(self, **kwargs):
-        self._dsn = kwargs.get('dsn', None)
-        if not self._dsn:
-            self._config = kwargs
-            self._config['host'] = kwargs.get('host', 'localhost')
+        self._pool = kwargs.get('pool', None)
+        if not self._pool:
+            self._dsn = kwargs.get('dsn', None)
+            if not self._dsn:
+                self._config = kwargs
+                self._config['host'] = kwargs.get('host', 'localhost')
 
         self._log = kwargs.get('log', None)
         self._log_fmt = kwargs.get('log_fmt', None)
@@ -56,7 +59,8 @@ class PgSimple(object):
 
     def connect(self):
         """Connect to the postgres server"""
-
+        if self._pool:
+            return
         try:
             if self._dsn:
                 self._connection = psycopg2.connect(self._dsn)
