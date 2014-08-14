@@ -62,10 +62,10 @@ class PgSimple(object):
                 self._connection = psycopg2.connect(self._dsn)
             else:
                 self._connection = psycopg2.connect(database=self._config['database'],
-                                              host=self._config.get('host'),
-                                              port=self._config.get('port'),
-                                              user=self._config.get('user'),
-                                              password=self._config.get('password'))
+                                                    host=self._config.get('host'),
+                                                    port=self._config.get('port'),
+                                                    user=self._config.get('user'),
+                                                    password=self._config.get('password'))
             self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)
         except Exception, e:
             self._log_error('postgresql connection failed: ' + e.message)
@@ -176,6 +176,12 @@ class PgSimple(object):
     def drop(self, table):
         """Drop a table"""
         self.execute('DROP TABLE IF EXISTS %s CASCADE' % table)
+
+    def create(self, table, schema):
+        """Create a table with the provided schema
+
+        pg_db.create('my_table','id SERIAL PRIMARY KEY, name TEXT')"""
+        self.execute('CREATE TABLE %s (%s)' % (table, schema))
 
     def commit(self):
         """Commit a transaction"""
