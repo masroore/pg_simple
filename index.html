@@ -64,13 +64,19 @@
                       <span class="n">password</span><span class="o">=</span><span class="s">'secret'</span><span class="p">)</span>
 </pre></div>
 
-<p>or:</p>
+<p>or, using <code>dsn</code>:</p>
 
-<div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">pg_simple</span>
-
-<span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
                       <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                       <span class="n">dsn</span><span class="o">=</span><span class="s">'dbname=pg_simple user=postgres password=secret'</span><span class="p">)</span>
+
+</pre></div>
+
+<p>or, using <code>db_url</code>:</p>
+
+<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                      <span class="n">db_url</span><span class="o">=</span> <span class="s">'postgres://username:password@hostname:port/database'</span><span class="p">)</span>
 
 </pre></div>
 
@@ -202,6 +208,17 @@
 
 <span class="k">for</span> <span class="n">book</span> <span class="ow">in</span> <span class="n">books</span><span class="p">:</span>
     <span class="k">print</span><span class="p">(</span><span class="n">book</span><span class="o">.</span><span class="n">n</span> <span class="o">+</span> <span class="s">'belongs to '</span> <span class="o">+</span> <span class="n">book</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+
+<h3>
+<a name="database-transactions" class="anchor" href="#database-transactions"><span class="octicon octicon-link"></span></a>Database transactions:</h3>
+
+<div class="highlight highlight-python"><pre><span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">_db</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">_db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'Some SQL statement'</span><span class="p">)</span>
+        <span class="n">_db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">_db</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
 </pre></div>
       </section>
     </div>
