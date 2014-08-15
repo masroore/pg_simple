@@ -31,16 +31,25 @@ pg_simple.config_pool(max_conn=5,
                       user='postgres',
                       password='secret')
 ```
-or:
+
+or, using `dsn`:
 
 ```python
-import pg_simple
-
 pg_simple.config_pool(max_conn=5,
                       expiration=1,
                       dsn='dbname=pg_simple user=postgres password=secret')
 
 ```
+
+or, using `db_url`:
+
+```python
+pg_simple.config_pool(max_conn=5,
+                      expiration=1,
+                      db_url= 'postgres://username:password@hostname:port/database')
+
+```
+
 
 ### Connecting to the posgtresql server:
 
