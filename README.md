@@ -6,29 +6,49 @@ An ultra simple wrapper over Python psycopg2 with support for basic SQL function
 
 With `pip` or `easy_install`:
 
-```pip install simplemysql```
+```pip install pg_simple```
 
 or:
 
-```easy_install simplemysql```
+```easy_install pg_simple```
 
-Or from the source:
+or from the source:
 
 ```python setup.py install```
 
-# Basic Usage
+## Basic Usage
+
+### Initializing the connection pool:
+
+```python
+import pg_simple
+
+pg_simple.config_pool(max_conn=5,
+                      expiration=1, # idle timeout = 1 minute
+                      host='localhost',
+                      port=5432,
+                      database='pg_simple',
+                      user='postgres',
+                      password='secret')
+```
+or:
+
+```python
+import pg_simple
+
+pg_simple.config_pool(max_conn=5,
+                      expiration=1,
+                      dsn='dbname=pg_simple user=postgres password=secret')
+
+```
 
 ### Connecting to the posgtresql server:
 
 ```python
 import sys
-from pg_simple import PgSimple
+import pg_simple
 
-db = pg_simple.PgSimple(host='127.0.0.1',
-                        database='pg_simple',
-                        user='postgres',
-                        password='secret',
-                        log=sys.stdout,
+db = pg_simple.PgSimple(log=sys.stdout,
                         log_fmt=lambda x: '>> %s' % (x if isinstance(x, str) else x.query),
                         nt_cursor=True)
 ```
@@ -38,21 +58,26 @@ db = pg_simple.PgSimple(host='127.0.0.1',
 ```python
 >>> db.execute('SELECT tablename FROM pg_tables WHERE schemaname=%s and tablename=%s', ['public', 'books'])
 <cursor object at 0x102352a50; closed: 0>
+```
 
-# Setting up test database...
+### Dropping and creating tables:
 
-db.execute('DROP TABLE IF EXISTS "books"')
+```python
+db.drop('books')
 
-db.execute('''CREATE TABLE "books" (
-	"id" SERIAL NOT NULL,
-	"genre" VARCHAR(20) NOT NULL,
-	"name" VARCHAR(40) NOT NULL,
-	"price" MONEY NOT NULL,
-	"published" DATE NOT NULL,
-	"modified" TIMESTAMP(6) NOT NULL DEFAULT now()
-)''')
+db.create('books',
+          '''
+"id" SERIAL NOT NULL,
+"type" VARCHAR(20) NOT NULL,
+"name" VARCHAR(40) NOT NULL,
+"price" MONEY NOT NULL,
+"published" DATE NOT NULL,
+"modified" TIMESTAMP(6) NOT NULL DEFAULT now()
+'''
+)
 
 db.execute('''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")''')
+
 ```
 
 ### Inserting a row:
@@ -71,7 +96,7 @@ db.commit()
 ### Updating rows:
 
 ```python
-with pg_simple.PgSimple(dsn='dbname=pg_simple user=postgres') as db1:
+with pg_simple.PgSimple() as db1:
     db1.update('books',
                data={'name': 'An expensive book',
                      'price': 998.997,
