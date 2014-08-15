@@ -180,3 +180,14 @@ books = db.fetchall('books',
 for book in books:
     print(book.n + 'belongs to ' + book[1])
 ```
+
+### Database transactions:
+
+```python
+with pg_simple.PgSimple() as _db:
+    try:
+        _db.execute('Some SQL statement')
+        _db.commit()
+    except:
+        _db.rollback()
+```
