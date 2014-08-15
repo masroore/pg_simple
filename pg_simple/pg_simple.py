@@ -1,33 +1,24 @@
 # -*- coding: utf-8 -*-
-import time
-
 __author__ = 'Masroor Ehsan'
 
+import time
 from collections import namedtuple
 import logging
 import os
-import psycopg2
+
 from psycopg2.extras import DictCursor, NamedTupleCursor
+
+import pool
 
 
 class PgSimple(object):
     _connection = None
     _cursor = None
-    _config = None
-    _pool = None
-    _dsn = None
     _log = None
     _log_fmt = None
     _cursor_factory = None
 
     def __init__(self, **kwargs):
-        self._pool = kwargs.get('pool', None)
-        if not self._pool:
-            self._dsn = kwargs.get('dsn', None)
-            if not self._dsn:
-                self._config = kwargs
-                self._config['host'] = kwargs.get('host', 'localhost')
-
         self._log = kwargs.get('log', None)
         self._log_fmt = kwargs.get('log_fmt', None)
         self._cursor_factory = NamedTupleCursor if kwargs.get('nt_cursor', True) else DictCursor
@@ -59,17 +50,9 @@ class PgSimple(object):
 
     def connect(self):
         """Connect to the postgres server"""
-        if self._pool:
-            return
+        the_pool = pool.get_pool()
         try:
-            if self._dsn:
-                self._connection = psycopg2.connect(self._dsn)
-            else:
-                self._connection = psycopg2.connect(database=self._config['database'],
-                                                    host=self._config.get('host'),
-                                                    port=self._config.get('port'),
-                                                    user=self._config.get('user'),
-                                                    password=self._config.get('password'))
+            self._connection = the_pool.get_conn()
             self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)
         except Exception, e:
             self._log_error('postgresql connection failed: ' + e.message)
@@ -84,10 +67,8 @@ class PgSimple(object):
                     eg: ("id=%s and name=%s", [1, "test"])
             order = [field, ASC|DESC]
         """
-
         cur = self._select(table, fields, where, order, 1, offset)
-        result = cur.fetchone()
-        return result
+        return cur.fetchone()
 
     def fetchall(self, table, fields='*', where=None, order=None, limit=None, offset=None):
         """Get all results
@@ -99,10 +80,8 @@ class PgSimple(object):
             order = [field, ASC|DESC]
             limit = [limit, offset]
         """
-
         cur = self._select(table, fields, where, order, limit, offset)
-        result = cur.fetchall()
-        return result
+        return cur.fetchall()
 
     def join(self, tables=(), fields=(), join_fields=(), where=None, order=None, limit=None, offset=None):
         """Run an inner left join query
@@ -115,55 +94,42 @@ class PgSimple(object):
             order = [field, ASC|DESC]
             limit = [limit1, limit2]
         """
-
         cur = self._join(tables, fields, join_fields, where, order, limit, offset)
         result = cur.fetchall()
 
         rows = None
         if result:
-            Row = namedtuple("Row", [f[0] for f in cur.description])
+            Row = namedtuple('Row', [f[0] for f in cur.description])
             rows = [Row(*r) for r in result]
 
         return rows
 
-    def insert(self, table, data):
+    def insert(self, table, data, returning=None):
         """Insert a record"""
+        cols, vals = self._format_insert(data)
+        sql = 'INSERT INTO %s (%s) VALUES(%s)' % (table, cols, vals)
+        sql += self._returning(returning)
+        cur = self.execute(sql, data.values())
+        return cur.fetchone() if returning else cur.rowcount
 
-        query = self._serialize_insert(data)
-
-        sql = "INSERT INTO %s (%s) VALUES(%s)" % (table, query[0], query[1])
-
-        return self.execute(sql, data.values()).rowcount
-
-    def update(self, table, data, where=None):
+    def update(self, table, data, where=None, returning=None):
         """Insert a record"""
+        query = self._format_update(data)
 
-        query = self._serialize_update(data)
-
-        sql = "UPDATE %s SET %s" % (table, query)
-
-        if where and len(where) > 0:
-            sql += " WHERE %s" % where[0]
-
-        return self.execute(sql, data.values() + where[1] if where and len(where) > 1 else data.values()).rowcount
+        sql = 'UPDATE %s SET %s' % (table, query)
+        sql += self._where(where) + self._returning(returning)
+        cur = self.execute(sql, data.values() + where[1] if where and len(where) > 1 else data.values())
+        return cur.fetchone() if returning else cur.rowcount
 
     def delete(self, table, where=None, returning=None):
         """Delete rows based on a where condition"""
-
         sql = 'DELETE FROM %s' % table
-
-        if where and len(where) > 0:
-            sql += ' WHERE %s' % where[0]
-
-        if returning:
-            sql += ' RETURNING %s' % returning
-            return self.execute(sql, where)
-
-        return self.execute(sql, where[1] if where and len(where) > 1 else None).rowcount
+        sql += self._where(where) + self._returning(returning)
+        cur = self.execute(sql, where[1] if where and len(where) > 1 else None)
+        return cur.fetchone() if returning else cur.rowcount
 
     def execute(self, sql, params=None):
         """Executes a raw query"""
-
         try:
             if self._log and self._log_fmt:
                 self._cursor.timestamp = time.time()
@@ -182,7 +148,7 @@ class PgSimple(object):
         self.execute('DROP TABLE IF EXISTS %s CASCADE' % table)
 
     def create(self, table, schema):
-        """Create a table with the provided schema
+        """Create a table with the schema provided
 
         pg_db.create('my_table','id SERIAL PRIMARY KEY, name TEXT')"""
         self.execute('CREATE TABLE %s (%s)' % (table, schema))
@@ -207,14 +173,14 @@ class PgSimple(object):
         self._connection.close()
         self._connection = None
 
-    def _serialize_insert(self, data):
+    def _format_insert(self, data):
         """Format insert dict values into strings"""
-        keys = ",".join(data.keys())
+        cols = ",".join(data.keys())
         vals = ",".join(["%s" for k in data])
 
-        return [keys, vals]
+        return cols, vals
 
-    def _serialize_update(self, data):
+    def _format_update(self, data):
         """Format update dict values into string"""
         return "=%s,".join(data.keys()) + "=%s"
 
@@ -240,6 +206,11 @@ class PgSimple(object):
     def _offset(self, offset):
         if offset:
             return ' OFFSET %d' % offset
+        return ''
+
+    def _returning(self, returning):
+        if returning:
+            return ' RETURNING %s' % returning
         return ''
 
     def _select(self, table=None, fields=(), where=None, order=None, limit=None, offset=None):
