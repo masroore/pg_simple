@@ -2,6 +2,8 @@
 __author__ = 'Erick Almeida and Masroor Ehsan'
 
 import datetime
+import urlparse
+import os
 
 import psycopg2
 import psycopg2.extensions as _ext
@@ -11,36 +13,33 @@ from psycopg2.pool import PoolError
 class AbstractConnectionPool(object):
     """Generic key-based pooling code."""
 
-    def __init__(self):
+    def __init__(self, expiration, max_conn, **kwargs):
+        """Initialize the connection pool."""
         self._pool = []
         self._used = {}
         self._rused = {}  # id(conn) -> key map
         self._tused = {}
         self._keys = 0
         self.closed = False
-
-    def configure(self, expiration, maxconn, *args, **kwargs):
-        """Initialize the connection pool.
-
-        New 'minconn' connections are created immediately calling 'connfunc'
-        with given parameters. The connection pool will support a maximum of
-        about 'maxconn' connections.
-        """
         self.expiration = expiration
-        self.maxconn = maxconn
-
-        self._args = args
-        self._kwargs = kwargs
+        self.max_conn = max_conn
+        self._pg_config = kwargs
+        self._dsn = kwargs.get('dsn', None)
 
     def _connect(self, key=None):
         """Create a new connection and assign it to 'key' if not None."""
-        conn = psycopg2.connect(*self._args, **self._kwargs)
+        if self._dsn:
+            conn = psycopg2.connect(self._dsn)
+        else:
+            conn = psycopg2.connect(**self._pg_config)
+
         if key is not None:
             self._used[key] = conn
             self._rused[id(conn)] = key
             self._tused[id(conn)] = datetime.datetime.now()
         else:
             self._pool.append(conn)
+
         return conn
 
     def _disconnect(self, conn, remove_from_pool=False):
@@ -57,7 +56,7 @@ class AbstractConnectionPool(object):
     def _get_conn(self, key=None):
         """Get a free connection and assign it to 'key' if not None."""
         if self.closed:
-            raise PoolError("connection pool is closed")
+            raise PoolError('Connection pool is closed')
         if key is None:
             key = self._get_key()
         if key in self._used:
@@ -69,31 +68,31 @@ class AbstractConnectionPool(object):
             self._tused[id(conn)] = datetime.datetime.now()
             return conn
         else:
-            if len(self._used) == self.maxconn:
-                raise PoolError("connection pool exausted")
+            if len(self._used) == self.max_conn:
+                raise PoolError('Connection pool exhausted')
             return self._connect(key)
 
     def clear_expired_connections(self):
         now = datetime.datetime.now()
-        expireds = []
+        expiry_list = []
         for item in self._pool:
             conn_time = self._tused[id(item)]
             minutes, seconds = divmod((now - conn_time).seconds, 60)
             if minutes >= self.expiration:
-                expireds.append(item)
-        for item in expireds:
+                expiry_list.append(item)
+        for item in expiry_list:
             self._disconnect(item, True)
 
     def _put_conn(self, conn, key=None, close=False):
         """Put away a connection."""
         if self.closed:
-            raise PoolError("connection pool is closed")
+            raise PoolError('Connection pool is closed')
         if key is None:
             key = self._rused.get(id(conn))
         if not key:
-            raise PoolError("trying to put unkeyed [{key}] connection".format(key=key))
+            raise PoolError('Trying to put un-keyed [{key}] connection'.format(key=key))
 
-        if len(self._pool) < self.maxconn and not close:
+        if len(self._pool) < self.max_conn and not close:
             # Return the connection into a consistent state before putting
             # it back into the pool
             if not conn.closed:
@@ -128,7 +127,7 @@ class AbstractConnectionPool(object):
         your code can deal with it.
         """
         if self.closed:
-            raise PoolError("connection pool is closed")
+            raise PoolError('Connection pool is closed')
         for conn in self._pool + list(self._used.values()):
             try:
                 conn.close()
@@ -181,3 +180,46 @@ class ThreadedConnectionPool(AbstractConnectionPool):
             self._close_all()
         finally:
             self._lock.release()
+
+
+__pool__ = None
+
+
+def config_pool(max_conn=5, expiration=5, pool_manager=SimpleConnectionPool, **kwargs):
+    global __pool__
+
+    config = None
+    dsn = kwargs.get('dsn')
+    db_url = kwargs.get('url', os.environ.get('DATABASE_URL'))
+
+    if not dsn:
+        if db_url:
+            params = urlparse.urlparse(db_url)
+            config = {'database': params.path[1:],
+                      'user': params.username,
+                      'password': params.password,
+                      'host': params.hostname,
+                      'port': params.port}
+        else:
+            config = kwargs
+            config['host'] = kwargs.get('host', 'localhost')
+
+    if not dsn and not config:
+        raise Exception('No database configuration provided')
+
+    if dsn:
+        __pool__ = pool_manager(expiration=expiration,
+                                max_conn=max_conn,
+                                dsn=dsn)
+    else:
+        __pool__ = pool_manager(expiration=expiration,
+                                max_conn=max_conn,
+                                database=config['database'],
+                                host=config.get('host'),
+                                port=config.get('port'),
+                                user=config.get('user'),
+                                password=config.get('password'))
+
+
+def get_pool():
+    return __pool__
