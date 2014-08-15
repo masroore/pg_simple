@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+__author__ = 'Masroor Ehsan'
 
-__author__ = 'masroor ehsan'
+VERSION = '0.2'
 
-VERSION = '0.1'
-
+from pool import config_pool, get_pool, SimpleConnectionPool, ThreadedConnectionPool
 from pg_simple import PgSimple
