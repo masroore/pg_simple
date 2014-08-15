@@ -119,14 +119,14 @@ class PgSimple(object):
         sql = 'UPDATE %s SET %s' % (table, query)
         sql += self._where(where) + self._returning(returning)
         cur = self.execute(sql, data.values() + where[1] if where and len(where) > 1 else data.values())
-        return cur.fetchone() if returning else cur.rowcount
+        return cur.fetchall() if returning else cur.rowcount
 
     def delete(self, table, where=None, returning=None):
         """Delete rows based on a where condition"""
         sql = 'DELETE FROM %s' % table
         sql += self._where(where) + self._returning(returning)
         cur = self.execute(sql, where[1] if where and len(where) > 1 else None)
-        return cur.fetchone() if returning else cur.rowcount
+        return cur.fetchall() if returning else cur.rowcount
 
     def execute(self, sql, params=None):
         """Executes a raw query"""
@@ -142,6 +142,19 @@ class PgSimple(object):
             raise
 
         return self._cursor
+
+    def truncate(self, table, restart_identity=False, cascade=False):
+        """Truncate a table or set of tables
+
+        db.truncate('tbl1')
+        db.truncate('tbl1, tbl2')
+        """
+        sql = 'TRUNCATE %s'
+        if restart_identity:
+            sql += ' RESTART IDENTITY'
+        if cascade:
+            sql += ' CASCADE'
+        self.execute(sql % table)
 
     def drop(self, table):
         """Drop a table"""
