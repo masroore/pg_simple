@@ -1,0 +1,215 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Pg simple by masroore</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Pg simple</h1>
+        <p>A simple wrapper over psycopg2 with support for common SQL functions</p>
+        <p class="view"><a href="https://github.com/masroore/pg_simple">View the Project on GitHub <small>masroore/pg_simple</small></a></p>
+        <ul>
+          <li><a href="https://github.com/masroore/pg_simple/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/masroore/pg_simple/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/masroore/pg_simple">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a name="pg_simple" class="anchor" href="#pg_simple"><span class="octicon octicon-link"></span></a>pg_simple</h1>
+
+<p>An ultra simple wrapper over Python psycopg2 with support for basic SQL functionality.</p>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>With <code>pip</code> or <code>easy_install</code>:</p>
+
+<p><code>pip install pg_simple</code></p>
+
+<p>or:</p>
+
+<p><code>easy_install pg_simple</code></p>
+
+<p>or from the source:</p>
+
+<p><code>python setup.py install</code></p>
+
+<h2>
+<a name="basic-usage" class="anchor" href="#basic-usage"><span class="octicon octicon-link"></span></a>Basic Usage</h2>
+
+<h3>
+<a name="initializing-the-connection-pool" class="anchor" href="#initializing-the-connection-pool"><span class="octicon octicon-link"></span></a>Initializing the connection pool:</h3>
+
+<div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">pg_simple</span>
+
+<span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c"># idle timeout = 1 minute</span>
+                      <span class="n">host</span><span class="o">=</span><span class="s">'localhost'</span><span class="p">,</span>
+                      <span class="n">port</span><span class="o">=</span><span class="mi">5432</span><span class="p">,</span>
+                      <span class="n">database</span><span class="o">=</span><span class="s">'pg_simple'</span><span class="p">,</span>
+                      <span class="n">user</span><span class="o">=</span><span class="s">'postgres'</span><span class="p">,</span>
+                      <span class="n">password</span><span class="o">=</span><span class="s">'secret'</span><span class="p">)</span>
+</pre></div>
+
+<p>or:</p>
+
+<div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">pg_simple</span>
+
+<span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                      <span class="n">dsn</span><span class="o">=</span><span class="s">'dbname=pg_simple user=postgres password=secret'</span><span class="p">)</span>
+
+</pre></div>
+
+<h3>
+<a name="connecting-to-the-posgtresql-server" class="anchor" href="#connecting-to-the-posgtresql-server"><span class="octicon octicon-link"></span></a>Connecting to the posgtresql server:</h3>
+
+<div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">pg_simple</span>
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">(</span><span class="n">log</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span>
+                        <span class="n">log_fmt</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s">'&gt;&gt; </span><span class="si">%s</span><span class="s">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">x</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">query</span><span class="p">),</span>
+                        <span class="n">nt_cursor</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+
+<h3>
+<a name="raw-sql-execution" class="anchor" href="#raw-sql-execution"><span class="octicon octicon-link"></span></a>Raw SQL execution:</h3>
+
+<div class="highlight highlight-python"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'SELECT tablename FROM pg_tables WHERE schemaname=</span><span class="si">%s</span><span class="s"> and tablename=</span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="s">'public'</span><span class="p">,</span> <span class="s">'books'</span><span class="p">])</span>
+<span class="o">&lt;</span><span class="n">cursor</span> <span class="nb">object</span> <span class="n">at</span> <span class="mh">0x102352a50</span><span class="p">;</span> <span class="n">closed</span><span class="p">:</span> <span class="mi">0</span><span class="o">&gt;</span>
+</pre></div>
+
+<h3>
+<a name="dropping-and-creating-tables" class="anchor" href="#dropping-and-creating-tables"><span class="octicon octicon-link"></span></a>Dropping and creating tables:</h3>
+
+<div class="highlight highlight-python"><pre><span class="n">db</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s">'books'</span><span class="p">)</span>
+
+<span class="n">db</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span>
+          <span class="sd">'''</span>
+<span class="sd">"id" SERIAL NOT NULL,</span>
+<span class="sd">"type" VARCHAR(20) NOT NULL,</span>
+<span class="sd">"name" VARCHAR(40) NOT NULL,</span>
+<span class="sd">"price" MONEY NOT NULL,</span>
+<span class="sd">"published" DATE NOT NULL,</span>
+<span class="sd">"modified" TIMESTAMP(6) NOT NULL DEFAULT now()</span>
+<span class="sd">'''</span>
+<span class="p">)</span>
+
+<span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")'''</span><span class="p">)</span>
+
+</pre></div>
+
+<h3>
+<a name="emptying-a-table-or-set-of-tables" class="anchor" href="#emptying-a-table-or-set-of-tables"><span class="octicon octicon-link"></span></a>Emptying a table or set of tables:</h3>
+
+<div class="highlight highlight-python"><pre><span class="n">db</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="s">'tbl1'</span><span class="p">)</span>
+<span class="n">db</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="s">'tbl2, tbl3'</span><span class="p">,</span> <span class="n">restart_identity</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">cascade</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+
+<h3>
+<a name="inserting-a-row" class="anchor" href="#inserting-a-row"><span class="octicon octicon-link"></span></a>Inserting a row:</h3>
+
+<div class="highlight highlight-python"><pre><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="s">"books"</span><span class="p">,</span>
+              <span class="p">{</span><span class="s">"genre"</span><span class="p">:</span> <span class="s">"fiction"</span><span class="p">,</span>
+               <span class="s">"name"</span><span class="p">:</span> <span class="s">"Book Name vol. </span><span class="si">%d</span><span class="s">"</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span>
+               <span class="s">"price"</span><span class="p">:</span> <span class="mf">1.23</span> <span class="o">*</span> <span class="n">i</span><span class="p">,</span>
+               <span class="s">"published"</span><span class="p">:</span> <span class="s">"</span><span class="si">%d</span><span class="s">-</span><span class="si">%d</span><span class="s">-1"</span> <span class="o">%</span> <span class="p">(</span><span class="mi">2000</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">)})</span>
+
+<span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+
+<h3>
+<a name="updating-rows" class="anchor" href="#updating-rows"><span class="octicon octicon-link"></span></a>Updating rows:</h3>
+
+<div class="highlight highlight-python"><pre><span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">db1</span><span class="p">:</span>
+    <span class="n">db1</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span>
+               <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'An expensive book'</span><span class="p">,</span>
+                     <span class="s">'price'</span><span class="p">:</span> <span class="mf">998.997</span><span class="p">,</span>
+                     <span class="s">'genre'</span><span class="p">:</span> <span class="s">'non-fiction'</span><span class="p">,</span>
+                     <span class="s">'modified'</span><span class="p">:</span> <span class="s">'NOW()'</span><span class="p">},</span>
+               <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published = </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2001</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]))</span>
+
+    <span class="n">db1</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+
+<h3>
+<a name="deleting-rows" class="anchor" href="#deleting-rows"><span class="octicon octicon-link"></span></a>Deleting rows:</h3>
+
+<div class="highlight highlight-python"><pre><span class="n">db</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published &gt;= </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2005</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">31</span><span class="p">)]))</span>
+<span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+
+<h3>
+<a name="insertingupdatingdeleting-rows-with-return-value" class="anchor" href="#insertingupdatingdeleting-rows-with-return-value"><span class="octicon octicon-link"></span></a>Inserting/updating/deleting rows with return value:</h3>
+
+<div class="highlight highlight-python"><pre><span class="n">row</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="s">"books"</span><span class="p">,</span>
+                <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"fiction"</span><span class="p">,</span>
+                 <span class="s">"name"</span><span class="p">:</span> <span class="s">"Book with ID"</span><span class="p">,</span>
+                 <span class="s">"price"</span><span class="p">:</span> <span class="mf">123.45</span><span class="p">,</span>
+                 <span class="s">"published"</span><span class="p">:</span> <span class="s">"1997-01-31"</span><span class="p">},</span>
+                <span class="n">returning</span><span class="o">=</span><span class="s">'id'</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<span class="n">rows</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span>
+                 <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'Another expensive book'</span><span class="p">,</span>
+                       <span class="s">'price'</span><span class="p">:</span> <span class="mf">500.50</span><span class="p">,</span>
+                       <span class="s">'modified'</span><span class="p">:</span> <span class="s">'NOW()'</span><span class="p">},</span>
+                 <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published = </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2006</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]),</span>
+                 <span class="n">returning</span><span class="o">=</span><span class="s">'modified'</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">modified</span><span class="p">)</span>
+
+<span class="n">rows</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span> 
+                 <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published &gt;= </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2005</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">31</span><span class="p">)]),</span> 
+                 <span class="n">returning</span><span class="o">=</span><span class="s">'name'</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+
+<h3>
+<a name="fetching-a-single-record" class="anchor" href="#fetching-a-single-record"><span class="octicon octicon-link"></span></a>Fetching a single record:</h3>
+
+<div class="highlight highlight-python"><pre><span class="n">book</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">fetchone</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span> 
+                   <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s">'name'</span><span class="p">,</span> <span class="s">'published'</span><span class="p">],</span> 
+                   <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published = </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2002</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]))</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">book</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s">'was published on '</span> <span class="o">+</span> <span class="n">book</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+
+<h3>
+<a name="fetching-multiple-records" class="anchor" href="#fetching-multiple-records"><span class="octicon octicon-link"></span></a>Fetching multiple records:</h3>
+
+<div class="highlight highlight-python"><pre><span class="n">books</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">fetchall</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span>
+                    <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s">'name AS n'</span><span class="p">,</span> <span class="s">'genre AS g'</span><span class="p">],</span>
+                    <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published BETWEEN </span><span class="si">%s</span><span class="s"> AND </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2005</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2009</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]),</span>
+                    <span class="n">order</span><span class="o">=</span><span class="p">[</span><span class="s">'published'</span><span class="p">,</span> <span class="s">'DESC'</span><span class="p">],</span> 
+                    <span class="n">limit</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> 
+                    <span class="n">offset</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">book</span> <span class="ow">in</span> <span class="n">books</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">book</span><span class="o">.</span><span class="n">n</span> <span class="o">+</span> <span class="s">'belongs to '</span> <span class="o">+</span> <span class="n">book</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/masroore">masroore</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
