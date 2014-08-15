@@ -80,6 +80,14 @@ db.execute('''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")
 
 ```
 
+### Emptying a table or set of tables:
+
+```python
+db.truncate('tbl1')
+db.truncate('tbl2, tbl3', restart_identity=True, cascade=True)
+db.commit()
+```
+
 ### Inserting a row:
 
 ```python
@@ -110,14 +118,6 @@ with pg_simple.PgSimple() as db1:
 ### Deleting rows:
 
 ```python
-db.truncate('tbl1')
-db.truncate('tbl2, tbl3', restart_identity=True, cascade=True)
-db.commit()
-```
-
-### Emptying a table or set of tables:
-
-```python
 db.delete('books', where=('published >= %s', [datetime.date(2005, 1, 31)]))
 db.commit()
 ```
@@ -141,9 +141,11 @@ rows = db.update('books',
                  returning='modified')
 print(rows[0].modified)
 
-rows = db.delete('books', where=('published >= %s', [datetime.date(2005, 1, 31)]), returning='id')
+rows = db.delete('books', 
+                 where=('published >= %s', [datetime.date(2005, 1, 31)]), 
+                 returning='name')
 for r in rows:
-    print(r.id)
+    print(r.name)
 ```
 
 ### Fetching a single record:
