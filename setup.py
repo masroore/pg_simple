@@ -1,8 +1,14 @@
+import os
+
 from setuptools import setup, find_packages
 
 import pg_simple
 
-with open('README.md') as stream: long_description = stream.read()
+try:
+    with open(os.path.abspath('./README.md')) as stream:
+        long_description = stream.read()
+except:
+    long_description = 'pg_simple is a simple wrapper for Python psycopg2'
 
 setup(
     name=pg_simple.__name__,
