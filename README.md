@@ -107,6 +107,44 @@ with pg_simple.PgSimple() as db1:
     db1.commit()
 ```
 
+### Deleting rows:
+
+```python
+db.truncate('tbl1')
+db.truncate('tbl2, tbl3', restart_identity=True, cascade=True)
+db.commit()
+```
+
+### Emptying a table or set of tables:
+
+```python
+db.delete('books', where=('published >= %s', [datetime.date(2005, 1, 31)]))
+db.commit()
+```
+
+### Inserting/updating/deleting rows with return value:
+
+```python
+row = db.insert("books",
+                {"type": "fiction",
+                 "name": "Book with ID",
+                 "price": 123.45,
+                 "published": "1997-01-31"},
+                returning='id')
+print(row.id)
+
+rows = db.update('books',
+                 data={'name': 'Another expensive book',
+                       'price': 500.50,
+                       'modified': 'NOW()'},
+                 where=('published = %s', [datetime.date(2006, 6, 1)]),
+                 returning='modified')
+print(rows[0].modified)
+
+rows = db.delete('books', where=('published >= %s', [datetime.date(2005, 1, 31)]), returning='id')
+for r in rows:
+    print(r.id)
+```
 
 ### Fetching a single record:
 
