@@ -36,7 +36,14 @@ class PgSimple(object):
             self._log_error('postgresql connection failed: ' + e.message)
             raise
 
-    def _log_debug(self, cursor):
+    def _debug_write(self, msg):
+        if msg and self._log:
+            if isinstance(self._log, logging.Logger):
+                self._log.debug(msg)
+            else:
+                self._log.write(msg + os.linesep)
+
+    def _log_cursor(self, cursor):
         if not self._log:
             return
 
@@ -45,11 +52,7 @@ class PgSimple(object):
         else:
             msg = str(cursor.query)
 
-        if msg:
-            if isinstance(self._log, logging.Logger):
-                self._log.debug(msg)
-            else:
-                self._log.write(msg + os.linesep)
+        self._debug_write(msg)
 
     def _log_error(self, data):
         if not self._log:
@@ -60,10 +63,7 @@ class PgSimple(object):
         else:
             msg = str(data)
 
-        if isinstance(self._log, logging.Logger):
-            self._log.error(msg)
-        else:
-            self._log.write(msg + os.linesep)
+        self._debug_write(msg)
 
     def fetchone(self, table, fields='*', where=None, order=None, offset=None):
         """Get a single result
@@ -142,7 +142,7 @@ class PgSimple(object):
                 self._cursor.timestamp = time.time()
             self._cursor.execute(sql, params)
             if self._log and self._log_fmt:
-                self._log_debug(self._cursor)
+                self._log_cursor(self._cursor)
         except Exception, e:
             if self._log and self._log_fmt:
                 self._log_error('execute() failed: ' + e.message)
@@ -254,10 +254,12 @@ class PgSimple(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
-        if not isinstance(value, Exception):
+    def __exit__(self, exc_type, exc_value, traceback):
+        if not isinstance(exc_value, Exception):
+            self._debug_write('Committing transaction')
             self.commit()
         else:
+            self._debug_write('Rolling back transaction')
             self.rollback()
 
         self._cursor.close()
