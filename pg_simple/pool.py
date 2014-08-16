@@ -20,10 +20,10 @@ class AbstractConnectionPool(object):
         self._rused = {}  # id(conn) -> key map
         self._tused = {}
         self._keys = 0
-        self.closed = False
+        self._closed = False
         self.expiration = expiration
         self.max_conn = max_conn
-        self._pg_config = kwargs
+        self._db_config = kwargs
         self._dsn = kwargs.get('dsn', None)
 
     def _connect(self, key=None):
@@ -31,7 +31,7 @@ class AbstractConnectionPool(object):
         if self._dsn:
             conn = psycopg2.connect(self._dsn)
         else:
-            conn = psycopg2.connect(**self._pg_config)
+            conn = psycopg2.connect(**self._db_config)
 
         if key is not None:
             self._used[key] = conn
@@ -55,7 +55,7 @@ class AbstractConnectionPool(object):
 
     def _get_conn(self, key=None):
         """Get a free connection and assign it to 'key' if not None."""
-        if self.closed:
+        if self._closed:
             raise PoolError('Connection pool is closed')
         if key is None:
             key = self._get_key()
@@ -85,7 +85,7 @@ class AbstractConnectionPool(object):
 
     def _put_conn(self, conn, key=None, close=False):
         """Put away a connection."""
-        if self.closed:
+        if self._closed:
             raise PoolError('Connection pool is closed')
         if key is None:
             key = self._rused.get(id(conn))
@@ -115,7 +115,7 @@ class AbstractConnectionPool(object):
 
         # here we check for the presence of key because it can happen that a
         # thread tries to put back a connection after a call to close
-        if not self.closed or key in self._used:
+        if not self._closed or key in self._used:
             del self._used[key]
             del self._rused[id(conn)]
 
@@ -126,14 +126,18 @@ class AbstractConnectionPool(object):
         an already closed connection. If you call .closeall() make sure
         your code can deal with it.
         """
-        if self.closed:
+        if self._closed:
             raise PoolError('Connection pool is closed')
         for conn in self._pool + list(self._used.values()):
             try:
                 conn.close()
             except:
                 pass
-        self.closed = True
+        self._closed = True
+
+    @property
+    def closed(self):
+        return self._closed
 
     def __del__(self):
         self._close_all()
