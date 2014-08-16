@@ -17,13 +17,24 @@ class PgSimple(object):
     _log = None
     _log_fmt = None
     _cursor_factory = None
+    _pool = None
 
     def __init__(self, **kwargs):
         self._log = kwargs.get('log', None)
         self._log_fmt = kwargs.get('log_fmt', None)
         self._cursor_factory = NamedTupleCursor if kwargs.get('nt_cursor', True) else DictCursor
 
-        self.connect()
+        self._connect()
+
+    def _connect(self):
+        """Connect to the postgres server"""
+        self._pool = pool.get_pool()
+        try:
+            self._connection = self._pool.get_conn()
+            self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)
+        except Exception, e:
+            self._log_error('postgresql connection failed: ' + e.message)
+            raise
 
     def _log_debug(self, cursor):
         if self._log_fmt:
@@ -47,16 +58,6 @@ class PgSimple(object):
             self._log.error(msg)
         else:
             self._log.write(msg + os.linesep)
-
-    def connect(self):
-        """Connect to the postgres server"""
-        the_pool = pool.get_pool()
-        try:
-            self._connection = the_pool.get_conn()
-            self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)
-        except Exception, e:
-            self._log_error('postgresql connection failed: ' + e.message)
-            raise
 
     def fetchone(self, table, fields='*', where=None, order=None, offset=None):
         """Get a single result
@@ -179,13 +180,6 @@ class PgSimple(object):
         """Check if the connection is open"""
         return self._connection.open
 
-    def close(self):
-        """Kill the connection"""
-        self._cursor.close()
-        self._cursor = None
-        self._connection.close()
-        self._connection = None
-
     def _format_insert(self, data):
         """Format insert dict values into strings"""
         cols = ",".join(data.keys())
@@ -255,4 +249,13 @@ class PgSimple(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        self.close()
+        if not isinstance(value, Exception):
+            self.commit()
+        else:
+            self.rollback()
+
+        self._cursor.close()
+
+    def __del__(self):
+        if self._connection:
+            self._pool.put_conn(self._connection)
