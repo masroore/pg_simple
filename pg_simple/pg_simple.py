@@ -19,10 +19,10 @@ class PgSimple(object):
     _cursor_factory = None
     _pool = None
 
-    def __init__(self, **kwargs):
-        self._log = kwargs.get('log', None)
-        self._log_fmt = kwargs.get('log_fmt', None)
-        self._cursor_factory = NamedTupleCursor if kwargs.get('nt_cursor', True) else DictCursor
+    def __init__(self, log=None, log_fmt=None, nt_cursor=True):
+        self._log = log
+        self._log_fmt = log_fmt
+        self._cursor_factory = NamedTupleCursor if nt_cursor else DictCursor
 
         self._connect()
 
@@ -37,6 +37,9 @@ class PgSimple(object):
             raise
 
     def _log_debug(self, cursor):
+        if not self._log:
+            return
+
         if self._log_fmt:
             msg = self._log_fmt(cursor)
         else:
@@ -49,6 +52,9 @@ class PgSimple(object):
                 self._log.write(msg + os.linesep)
 
     def _log_error(self, data):
+        if not self._log:
+            return
+
         if self._log_fmt:
             msg = self._log_fmt(data)
         else:
@@ -258,4 +264,4 @@ class PgSimple(object):
 
     def __del__(self):
         if self._connection:
-            self._pool.put_conn(self._connection)
+            self._pool.put_conn(self._connection, fail_silently=True)
