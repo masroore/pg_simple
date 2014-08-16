@@ -29,7 +29,7 @@ class AbstractConnectionPool(object):
         self._debug = kwargs.get('debug', False)
         if self._debug:
             self._debug_fn = self._debug.debug if hasattr(self._debug, 'debug') else self._debug.write
-        if kwargs.has_key('debug'):
+        if 'debug' in kwargs:
             del kwargs['debug']
         self._db_config = kwargs
         self._dsn = kwargs.get('dsn', None)
@@ -199,9 +199,9 @@ class SimpleConnectionPool(AbstractConnectionPool):
 class ThreadedConnectionPool(AbstractConnectionPool):
     """A connection pool that works with the threading module."""
 
-    def __init__(self):
+    def __init__(self, expiration, max_conn, **kwargs):
         """Initialize the threading lock."""
-        AbstractConnectionPool.__init__(self)
+        super(ThreadedConnectionPool, self).__init__(self, expiration, max_conn, **kwargs)
         self._lock = threading.Lock()
         if self._debug:
             # lock used to serialize debug output between threads
@@ -223,11 +223,11 @@ class ThreadedConnectionPool(AbstractConnectionPool):
         finally:
             self._lock.release()
 
-    def put_conn(self, conn=None, key=None, close=False):
+    def put_conn(self, conn=None, key=None, close=False, fail_silently=False):
         """Put away an unused connection."""
         self._lock.acquire()
         try:
-            self._put_conn(conn, key, close)
+            self._put_conn(conn, key, close, fail_silently)
         finally:
             self._lock.release()
 
