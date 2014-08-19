@@ -3,8 +3,11 @@
 __author__ = 'Masroor Ehsan'
 
 import unittest
-import pg_simple
 import threading
+import time
+
+import pg_simple
+
 
 TEST_DB_DSN = 'dbname=pg_simple user=masroor'
 
@@ -25,10 +28,11 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
 
     def setUp(self):
         super(AbstractPgSimpleTestCase, self).setUp()
-        pg_simple.config_pool(max_pool=250,
-                              pool_expiration=1,
+        pg_simple.config_pool(max_conn=25,
+                              expiration=5,
                               pool_manager=self._get_pool_manager(),
                               dsn=TEST_DB_DSN)
+
         self.tables = (('pg_t1', '''id SERIAL PRIMARY KEY,
                                    name TEXT NOT NULL,
                                    count INTEGER NOT NULL DEFAULT 0,
@@ -41,17 +45,24 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
         raise NotImplementedError()
 
     def _drop_tables(self, db):
-        db.drop('pg_t1')
+        db.drop('pg_t1', True)
         db.drop('pg_t2')
+
+    def _truncate_tables(self, db):
+        db.truncate('pg_t2', restart_identity=True)
+        db.truncate('pg_t1', restart_identity=True, cascade=True)
+
+    def _populate_tables(self, db):
+        for i in range(26):
+            id_ = db.insert('pg_t1', {'name': chr(97 + i) * 5}, returning='id')
+            _ = db.insert('pg_t2', {'value': chr(97 + i) * 4, 'pg_t1_id': id_})
 
     def _create_tables(self, db, fill=False):
         for (name, schema) in self.tables:
             db.create(name, schema)
 
         if fill:
-            for i in range(10):
-                id_ = db.insert('pg_t1', {'name': chr(97 + i) * 5}, returning='id')
-                _ = db.insert('pg_t2', {'value': chr(97 + i) * 2, 'pg_t1_id': id_})
+            self._populate_tables(db)
 
     def test_basic_functions(self):
         import code
@@ -104,49 +115,57 @@ class PgSimpleTestCase(AbstractPgSimpleTestCase):
         return pg_simple.SimpleConnectionPool
 
 
+class PgSimpleThread(threading.Thread):
+    def __init__(self, thread_id, name, counter, test_cls):
+        threading.Thread.__init__(self)
+        self.thread_id = thread_id
+        self.name = name
+        self.counter = counter
+        self.test_cls = test_cls
+
+    def run(self):
+        print('Starting %s' % self.name)
+        self.database_operations()
+        print('Exiting %s' % self.name)
+
+    def database_operations(self):
+        with pg_simple.PgSimple() as db:
+            self.test_cls._check_table(db, 'pg_t1')
+            self.test_cls._truncate_tables(db)
+            self.test_cls._populate_tables(db)
+
+        time.sleep(1)
+
+
 class PgSimpleThreadedTestCase(AbstractPgSimpleTestCase):
     def _get_pool_manager(self):
         return pg_simple.ThreadedConnectionPool
 
     def test_threaded_connections(self):
-        class PgSimpleThread(threading.Thread):
-            def __init__(self, thread_id, name, counter):
-                threading.Thread.__init__(self)
-                self.thread_id = thread_id
-                self.name = name
-                self.counter = counter
+        with pg_simple.PgSimple() as db:
+            self._drop_tables(db)
+            self._create_tables(db, fill=True)
 
-            def run(self):
-                print("Starting " + self.name)
-                database_operations()
-                print("Exiting " + self.name)
+        threads = []
 
-        def database_operations():
-            with pg_simple.PgSimple() as db:
-                self._check_table(db, 'pg_t1')
+        # Create new threads
+        for i in range(20):
+            t = PgSimpleThread(i, 'thread-' + str(i), i, self)
+            threads.append(t)
 
-            with pg_simple.PgSimple() as db:
-                self._drop_tables(db)
-                self._create_tables(db, fill=True)
-            threads = []
+        # Start new Threads
+        for t in threads:
+            t.start()
 
-            # Create new threads
-            for i in range(500):
-                thr = PgSimpleThread(i, "Thread-" + str(i), i)
-                threads.append(thr)
+        # Wait for all threads to complete
+        for t in threads:
+            t.join()
 
-            # Start new Threads
-            for t in threads:
-                t.start()
+        # Drop tables
+        with pg_simple.PgSimple() as db:
+            self._drop_tables(db)
 
-            # Wait for all threads to complete
-            for t in threads:
-                t.join()
-
-            # Drop tables
-            with pg_simple.PgSimple() as db:
-                self._drop_tables(db)
-            print "Exiting Main Thread \n"
+        print "Exiting Main Thread \n"
 
 
 if __name__ == '__main__':
