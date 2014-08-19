@@ -163,9 +163,12 @@ class PgSimple(object):
             sql += ' CASCADE'
         self.execute(sql % table)
 
-    def drop(self, table):
+    def drop(self, table, cascade=False):
         """Drop a table"""
-        self.execute('DROP TABLE IF EXISTS %s CASCADE' % table)
+        sql = 'DROP TABLE IF EXISTS %s'
+        if cascade:
+            sql += ' CASCADE'
+        self.execute(sql % table)
 
     def create(self, table, schema):
         """Create a table with the schema provided
