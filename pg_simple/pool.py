@@ -16,7 +16,7 @@ from psycopg2.pool import PoolError
 class AbstractConnectionPool(object):
     """Generic key-based pooling code."""
 
-    def __init__(self, max_conn, expiration, **kwargs):
+    def __init__(self, max_conn, expiration, disable_pooling, **kwargs):
         """Initialize the connection pool."""
         self._pool = []
         self._used = {}
@@ -27,6 +27,7 @@ class AbstractConnectionPool(object):
         self.expiration = expiration
         self.max_conn = max_conn
         self._debug = kwargs.get('debug', False)
+        self._disable_pooling = disable_pooling # do not pool database connections
         if self._debug:
             self._log_msg_suffix = '\n' if not hasattr(self._debug, 'debug') else ''
             self._debug_fn = self._debug.debug if hasattr(self._debug, 'debug') else self._debug.write
@@ -50,21 +51,22 @@ class AbstractConnectionPool(object):
         else:
             conn = psycopg2.connect(**self._db_config)
 
-        if key is not None:
-            self._used[key] = conn
-            self._rused[id(conn)] = key
-            self._tused[id(conn)] = time.time()
-        else:
-            self._pool.append(conn)
+        if not self._disable_pooling:
+            if key is not None:
+                self._used[key] = conn
+                self._rused[id(conn)] = key
+                self._tused[id(conn)] = time.time()
+            else:
+                self._pool.append(conn)
 
         self._log('Connection created %s' % conn)
         return conn
 
     def _release(self, conn, remove_from_pool=False):
-        if remove_from_pool and conn in self._pool:
+        if not self._disable_pooling and remove_from_pool and conn in self._pool:
             self._pool.remove(conn)
+            del self._tused[id(conn)]
         conn.close()
-        del self._tused[id(conn)]
         self._log('Connection closed: %s [pool: %d]' % (conn, len(self._pool)))
 
     def _get_key(self):
@@ -76,6 +78,10 @@ class AbstractConnectionPool(object):
         """Get a free connection and assign it to 'key' if not None."""
         if self._disposed:
             raise PoolError('Connection pool is disposed')
+
+        if self._disable_pooling:
+            return self._connect(key)
+
         if key is None:
             key = self._get_key()
         if key in self._used:
@@ -92,6 +98,9 @@ class AbstractConnectionPool(object):
             return self._connect(key)
 
     def purge_expired_connections(self):
+        if self._disable_pooling:
+            return
+
         now = time.time()
         expiry_list = []
         for item in self._pool:
@@ -106,6 +115,10 @@ class AbstractConnectionPool(object):
 
     def _put_conn(self, conn, key=None, close=False, fail_silently=False):
         """Stow away a connection."""
+        if self._disable_pooling:
+            self._release(conn)
+            return
+
         self._log('Putting away %s%s' % (conn, ' key=' + key if key else ''))
         if self._disposed:
             if fail_silently:
@@ -166,14 +179,15 @@ class AbstractConnectionPool(object):
         if self._disposed:
             raise PoolError('Connection pool is disposed')
 
-        close_list = self._pool + list(self._used.values())
-        self._log('Closing %d connection(s)' % len(close_list))
+        if not self._disable_pooling:
+            close_list = self._pool + list(self._used.values())
+            self._log('Closing %d connection(s)' % len(close_list))
 
-        for conn in close_list:
-            try:
-                conn.close()
-            except:
-                pass
+            for conn in close_list:
+                try:
+                    conn.close()
+                except:
+                    pass
 
         self._disposed = True
         self._pool = []
@@ -243,7 +257,7 @@ class ThreadedConnectionPool(AbstractConnectionPool):
 __pool__ = None
 
 
-def config_pool(max_conn=5, expiration=60, pool_manager=SimpleConnectionPool, **kwargs):
+def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=SimpleConnectionPool, **kwargs):
     global __pool__
 
     config = None
@@ -269,11 +283,13 @@ def config_pool(max_conn=5, expiration=60, pool_manager=SimpleConnectionPool, **
     if dsn:
         __pool__ = pool_manager(expiration=expiration,
                                 max_conn=max_conn,
+                                disable_pooling=disable_pooling,
                                 dsn=dsn,
                                 debug=debug)
     else:
         __pool__ = pool_manager(expiration=expiration,
                                 max_conn=max_conn,
+                                disable_pooling=disable_pooling,
                                 database=config['database'],
                                 host=config.get('host'),
                                 port=config.get('port'),
