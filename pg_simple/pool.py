@@ -2,11 +2,11 @@
 
 __author__ = 'Erick Almeida and Masroor Ehsan'
 
-import datetime
 import urlparse
 import os
 import gc
 import threading
+import time
 
 import psycopg2
 import psycopg2.extensions as _ext
@@ -16,7 +16,7 @@ from psycopg2.pool import PoolError
 class AbstractConnectionPool(object):
     """Generic key-based pooling code."""
 
-    def __init__(self, expiration, max_conn, **kwargs):
+    def __init__(self, max_conn, expiration, **kwargs):
         """Initialize the connection pool."""
         self._pool = []
         self._used = {}
@@ -28,6 +28,7 @@ class AbstractConnectionPool(object):
         self.max_conn = max_conn
         self._debug = kwargs.get('debug', False)
         if self._debug:
+            self._log_msg_suffix = '\n' if not hasattr(self._debug, 'debug') else ''
             self._debug_fn = self._debug.debug if hasattr(self._debug, 'debug') else self._debug.write
         if 'debug' in kwargs:
             del kwargs['debug']
@@ -40,7 +41,7 @@ class AbstractConnectionPool(object):
         """
         if self._debug:
             curr_thr = threading.currentThread()
-            self._debug_fn('[%d:%s] %s' % (os.getpid(), curr_thr.name, msg))
+            self._debug_fn('[%d:%s] %s%s' % (os.getpid(), curr_thr.name, msg, self._log_msg_suffix))
 
     def _connect(self, key=None):
         """Create a new connection and assign it to 'key' if not None."""
@@ -52,7 +53,7 @@ class AbstractConnectionPool(object):
         if key is not None:
             self._used[key] = conn
             self._rused[id(conn)] = key
-            self._tused[id(conn)] = datetime.datetime.now()
+            self._tused[id(conn)] = time.time()
         else:
             self._pool.append(conn)
 
@@ -64,8 +65,7 @@ class AbstractConnectionPool(object):
             self._pool.remove(conn)
         conn.close()
         del self._tused[id(conn)]
-        self._log('Connection closed: %s' % conn)
-        self._log('Pool=%d' % len(self._pool))
+        self._log('Connection closed: %s [pool: %d]' % (conn, len(self._pool)))
 
     def _get_key(self):
         """Return a new unique key."""
@@ -84,7 +84,7 @@ class AbstractConnectionPool(object):
         if self._pool:
             self._used[key] = conn = self._pool.pop()
             self._rused[id(conn)] = key
-            self._tused[id(conn)] = datetime.datetime.now()
+            self._tused[id(conn)] = time.time()
             return conn
         else:
             if len(self._used) == self.max_conn:
@@ -92,15 +92,15 @@ class AbstractConnectionPool(object):
             return self._connect(key)
 
     def purge_expired_connections(self):
-        now = datetime.datetime.now()
+        now = time.time()
         expiry_list = []
         for item in self._pool:
             conn_time = self._tused[id(item)]
-            minutes, seconds = divmod((now - conn_time).seconds, 60)
-            if minutes >= self.expiration:
+            elapsed = now - conn_time
+            if elapsed >= self.expiration:
                 expiry_list.append(item)
 
-        self._log('Purging. Pool=%d, Expired=%d' % (len(self._pool), len(expiry_list)))
+        self._log('Purging... [pool: %d, expired: %d]' % (len(self._pool), len(expiry_list)))
         for item in expiry_list:
             self._release(item, True)
 
@@ -115,7 +115,7 @@ class AbstractConnectionPool(object):
         if key is None:
             key = self._rused.get(id(conn))
         if not key:
-            raise PoolError('Trying to put un-keyed [{key}] connection'.format(key=key))
+            raise PoolError('Trying to put un-keyed connection')
 
         if len(self._pool) < self.max_conn and not close:
             # Return the connection into a consistent state before putting
@@ -199,9 +199,9 @@ class SimpleConnectionPool(AbstractConnectionPool):
 class ThreadedConnectionPool(AbstractConnectionPool):
     """A connection pool that works with the threading module."""
 
-    def __init__(self, expiration, max_conn, **kwargs):
+    def __init__(self, max_conn, expiration, **kwargs):
         """Initialize the threading lock."""
-        super(ThreadedConnectionPool, self).__init__(expiration, max_conn, **kwargs)
+        super(ThreadedConnectionPool, self).__init__(max_conn, expiration, **kwargs)
         self._lock = threading.Lock()
         if self._debug:
             # lock used to serialize debug output between threads
@@ -243,7 +243,7 @@ class ThreadedConnectionPool(AbstractConnectionPool):
 __pool__ = None
 
 
-def config_pool(max_conn=5, expiration=5, pool_manager=SimpleConnectionPool, **kwargs):
+def config_pool(max_conn=5, expiration=60, pool_manager=SimpleConnectionPool, **kwargs):
     global __pool__
 
     config = None
