@@ -201,7 +201,7 @@ class ThreadedConnectionPool(AbstractConnectionPool):
 
     def __init__(self, expiration, max_conn, **kwargs):
         """Initialize the threading lock."""
-        super(ThreadedConnectionPool, self).__init__(self, expiration, max_conn, **kwargs)
+        super(ThreadedConnectionPool, self).__init__(expiration, max_conn, **kwargs)
         self._lock = threading.Lock()
         if self._debug:
             # lock used to serialize debug output between threads
