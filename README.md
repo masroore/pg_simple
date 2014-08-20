@@ -1,6 +1,6 @@
-# pg_simple
+# [pg_simple](https://github.com/masroore/pg_simple)
 
-The `pg_simple` module provides a simple yet efficient layer over `psycopg2` providing Python API for common SQL functions, explicit and implicit transactions management and database connection pooling for single and multi-threaded applications.
+The [pg_simple](https://github.com/masroore/pg_simple) module provides a simple yet efficient layer over `psycopg2` providing Python API for common SQL functions, explicit and implicit transactions management and database connection pooling for single and multi-threaded applications.
 
 `pg_simple` is not intended to provide ORM-like functionality, rather to make it easier to interact with the PostgreSQL database from python code for direct SQL access using convenient wrapper methods. The module wraps the excellent `psycopg2` library and most of the functionality is provided by this behind the scenes.
 
