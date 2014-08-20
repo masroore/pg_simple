@@ -30,9 +30,19 @@
         <h1>
 <a name="pg_simple" class="anchor" href="#pg_simple"><span class="octicon octicon-link"></span></a>pg_simple</h1>
 
-<p>An ultra simple wrapper over Python psycopg2 with support for basic SQL functionality.</p>
+<p>The <code>pg_simple</code> module provides a simple yet efficient layer over <code>psycopg2</code> providing Python API for common SQL functions, explicit and implicit transactions management and database connection pooling for single and multi-threaded applications.</p>
 
-<h2>
+<p><code>pg_simple</code> is not intended to provide ORM-like functionality, rather to make it easier to interact with the PostgreSQL database from python code for direct SQL access using convenient wrapper methods. The module wraps the excellent <code>psycopg2</code> library and most of the functionality is provided by this behind the scenes.</p>
+
+<p>The <code>pg_simple</code> module provides:</p>
+
+<ul>
+<li>Simplified handling of database connections/cursor</li>
+<li>Connection pool for single or multithreaded access</li>
+<li>Python API to wrap basic SQL functionality: select, update, delete, join et al</li>
+<li>Query results as python namedtuple and dict objects (using <code>psycopg2.extras.NamedTupleCursor</code> and <code>psycopg2.extras.DictCursor</code> respectively)</li>
+<li>Debug logging support</li>
+</ul><h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
 <p>With <code>pip</code> or <code>easy_install</code>:</p>
@@ -48,15 +58,38 @@
 <p><code>python setup.py install</code></p>
 
 <h2>
-<a name="basic-usage" class="anchor" href="#basic-usage"><span class="octicon octicon-link"></span></a>Basic Usage</h2>
+<a name="30-seconds-quick-start-guide" class="anchor" href="#30-seconds-quick-start-guide"><span class="octicon octicon-link"></span></a>30 Seconds Quick-start Guide</h2>
 
-<h3>
-<a name="initializing-the-connection-pool" class="anchor" href="#initializing-the-connection-pool"><span class="octicon octicon-link"></span></a>Initializing the connection pool:</h3>
+<ul>
+<li>Step 1: Initialize a connection pool manager using <code>pg_simple.config_pool()</code>
+</li>
+<li>Step 2: Create a database connection and cursor by instantiating a <code>pg_simple.PgSimple</code> object</li>
+</ul><p>Here's a pseudo-example to illustrate the basic concepts:</p>
 
 <div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">pg_simple</span>
 
-<span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-                      <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c"># idle timeout = 1 minute</span>
+<span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">dsn</span><span class="o">=</span><span class="s">'dbname=my_db user=my_username ...'</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">db</span><span class="p">:</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="s">'table_name'</span><span class="p">,</span>
+              <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s">'column'</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+                    <span class="s">'another_column'</span><span class="p">:</span> <span class="s">'blah blah'</span><span class="p">})</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+<span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">db1</span><span class="p">:</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">db1</span><span class="o">.</span><span class="n">fetchall</span><span class="p">(</span><span class="s">'table_name'</span><span class="p">)</span>
+</pre></div>
+
+<h2>
+<a name="connection-pool-management" class="anchor" href="#connection-pool-management"><span class="octicon octicon-link"></span></a>Connection pool management</h2>
+
+<h3>
+<a name="initialize-the-connection-pool" class="anchor" href="#initialize-the-connection-pool"><span class="octicon octicon-link"></span></a>Initialize the connection pool</h3>
+
+<div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">pg_simple</span>
+
+<span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="c"># idle timeout = 60 seconds</span>
                       <span class="n">host</span><span class="o">=</span><span class="s">'localhost'</span><span class="p">,</span>
                       <span class="n">port</span><span class="o">=</span><span class="mi">5432</span><span class="p">,</span>
                       <span class="n">database</span><span class="o">=</span><span class="s">'pg_simple'</span><span class="p">,</span>
@@ -66,22 +99,71 @@
 
 <p>or, using <code>dsn</code>:</p>
 
-<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-                      <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                      <span class="n">dsn</span><span class="o">=</span><span class="s">'dbname=pg_simple user=postgres password=secret'</span><span class="p">)</span>
+<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                      <span class="n">dsn</span><span class="o">=</span><span class="s">'dbname=database_name user=postgres password=secret'</span><span class="p">)</span>
 
 </pre></div>
 
 <p>or, using <code>db_url</code>:</p>
 
-<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-                      <span class="n">expiration</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                      <span class="n">db_url</span><span class="o">=</span> <span class="s">'postgres://username:password@hostname:port/database'</span><span class="p">)</span>
+<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                      <span class="n">db_url</span><span class="o">=</span> <span class="s">'postgres://username:password@hostname:numeric_port/database'</span><span class="p">)</span>
 
 </pre></div>
 
+<p>The above snippets will create a connection pool capable of accommodating a maximum of 250 concurrent database connections. Once that limit is reached and the pool does not contain any idle connections, all subsequent new connection request will result in a <code>PoolError</code> exception (until the pool gets refilled with idle connections).</p>
+
+<p>Take caution to properly clean up all <code>pg_simple.PgSimple</code> objects after use (wrap the object inside python try-finally block or <code>with</code> statement). Once the object is released, it will quietly return the internal database connction to the idle pool. Failure to dispose <code>PgSimple</code> properly may result in pool exhaustion error.</p>
+
 <h3>
-<a name="connecting-to-the-posgtresql-server" class="anchor" href="#connecting-to-the-posgtresql-server"><span class="octicon octicon-link"></span></a>Connecting to the posgtresql server:</h3>
+<a name="configure-connection-pool-for-thread-safe-access" class="anchor" href="#configure-connection-pool-for-thread-safe-access"><span class="octicon octicon-link"></span></a>Configure connection pool for thread-safe access</h3>
+
+<p>The default <code>SimpleConnectionPool</code> pool manager is not thread-safe. To utilize the connection pool in multi-threaded apps, use the <code>ThreadedConnectionPool</code>:</p>
+
+<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">max_conn</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span>
+                      <span class="n">expiration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                      <span class="n">pool_manager</span><span class="o">=</span><span class="n">ThreadedConnectionPool</span><span class="p">,</span>
+                      <span class="n">dsn</span><span class="o">=</span><span class="s">'...'</span><span class="p">)</span>
+</pre></div>
+
+<h3>
+<a name="disable-connection-pooling" class="anchor" href="#disable-connection-pooling"><span class="octicon octicon-link"></span></a>Disable connection pooling</h3>
+
+<p>To disable connection pooling completely, set the <code>disable_pooling</code> parameter to True:</p>
+
+<div class="highlight highlight-python"><pre><span class="n">pg_simple</span><span class="o">.</span><span class="n">config_pool</span><span class="p">(</span><span class="n">disable_pooling</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">dsn</span><span class="o">=</span><span class="s">'...'</span><span class="p">)</span>
+</pre></div>
+
+<p>All database requests on this pool will create new connections on the fly, and all connections returned to the pool (upon disposal of <code>PgSimple</code> object or by explicitly invoking <code>pool.put_conn()</code>) will be discarded immediately.</p>
+
+<h3>
+<a name="obtaining-the-current-connection-pool-manager" class="anchor" href="#obtaining-the-current-connection-pool-manager"><span class="octicon octicon-link"></span></a>Obtaining the current connection pool manager</h3>
+
+<p>Call the <code>pg_simple.get_pool()</code> method to get the current pool:</p>
+
+<div class="highlight highlight-python"><pre><span class="n">pool</span> <span class="o">=</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">get_pool</span><span class="p">()</span>
+</pre></div>
+
+<h3>
+<a name="garbage-collect-stale-connections" class="anchor" href="#garbage-collect-stale-connections"><span class="octicon octicon-link"></span></a>Garbage collect stale connections</h3>
+
+<p>To explicitly purge the pool of stale database connections (whose duration of stay in the pool exceeds the <code>expiration</code> timeout), invoke the <code>pool.purge_expired_connections()</code> method:</p>
+
+<div class="highlight highlight-python"><pre><span class="n">pool</span> <span class="o">=</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">get_pool</span><span class="p">()</span>
+<span class="n">pool</span><span class="o">.</span><span class="n">purge_expired_connections</span><span class="p">()</span>
+</pre></div>
+
+<p>Note that the pool is automatically scavenged for stale connections when an idle connection is returned to the pool (using the <code>pool.put_conn()</code> method).</p>
+
+<h2>
+<a name="basic-usage" class="anchor" href="#basic-usage"><span class="octicon octicon-link"></span></a>Basic Usage</h2>
+
+<h3>
+<a name="connecting-to-the-posgtresql-server" class="anchor" href="#connecting-to-the-posgtresql-server"><span class="octicon octicon-link"></span></a>Connecting to the posgtresql server</h3>
+
+<p>The following snippet will connect to the posgtresql server and allocate a cursor:</p>
 
 <div class="highlight highlight-python"><pre><span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">pg_simple</span>
@@ -91,15 +173,20 @@
                         <span class="n">nt_cursor</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 </pre></div>
 
+<p>By default <code>PgSimple</code> generates result sets as <code>collections.namedtuple</code> objects (using <code>psycopg2.extras.NamedTupleCursor</code>). If you want to access the retrieved records using an interface similar to the Python dictionaries (using <code>psycopg2.extras.DictCursor</code>), set the <code>nt_cursor</code> parameter to <code>False</code>:</p>
+
+<div class="highlight highlight-python"><pre><span class="n">db</span> <span class="o">=</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">(</span><span class="n">nt_cursor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+
 <h3>
-<a name="raw-sql-execution" class="anchor" href="#raw-sql-execution"><span class="octicon octicon-link"></span></a>Raw SQL execution:</h3>
+<a name="raw-sql-execution" class="anchor" href="#raw-sql-execution"><span class="octicon octicon-link"></span></a>Raw SQL execution</h3>
 
 <div class="highlight highlight-python"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'SELECT tablename FROM pg_tables WHERE schemaname=</span><span class="si">%s</span><span class="s"> and tablename=</span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="s">'public'</span><span class="p">,</span> <span class="s">'books'</span><span class="p">])</span>
 <span class="o">&lt;</span><span class="n">cursor</span> <span class="nb">object</span> <span class="n">at</span> <span class="mh">0x102352a50</span><span class="p">;</span> <span class="n">closed</span><span class="p">:</span> <span class="mi">0</span><span class="o">&gt;</span>
 </pre></div>
 
 <h3>
-<a name="dropping-and-creating-tables" class="anchor" href="#dropping-and-creating-tables"><span class="octicon octicon-link"></span></a>Dropping and creating tables:</h3>
+<a name="dropping-and-creating-tables" class="anchor" href="#dropping-and-creating-tables"><span class="octicon octicon-link"></span></a>Dropping and creating tables</h3>
 
 <div class="highlight highlight-python"><pre><span class="n">db</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s">'books'</span><span class="p">)</span>
 
@@ -115,11 +202,12 @@
 <span class="p">)</span>
 
 <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")'''</span><span class="p">)</span>
+<span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
 </pre></div>
 
 <h3>
-<a name="emptying-a-table-or-set-of-tables" class="anchor" href="#emptying-a-table-or-set-of-tables"><span class="octicon octicon-link"></span></a>Emptying a table or set of tables:</h3>
+<a name="emptying-a-table-or-set-of-tables" class="anchor" href="#emptying-a-table-or-set-of-tables"><span class="octicon octicon-link"></span></a>Emptying a table or set of tables</h3>
 
 <div class="highlight highlight-python"><pre><span class="n">db</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="s">'tbl1'</span><span class="p">)</span>
 <span class="n">db</span><span class="o">.</span><span class="n">truncate</span><span class="p">(</span><span class="s">'tbl2, tbl3'</span><span class="p">,</span> <span class="n">restart_identity</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">cascade</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
@@ -127,7 +215,7 @@
 </pre></div>
 
 <h3>
-<a name="inserting-a-row" class="anchor" href="#inserting-a-row"><span class="octicon octicon-link"></span></a>Inserting a row:</h3>
+<a name="inserting-rows" class="anchor" href="#inserting-rows"><span class="octicon octicon-link"></span></a>Inserting rows</h3>
 
 <div class="highlight highlight-python"><pre><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
     <span class="n">db</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="s">"books"</span><span class="p">,</span>
@@ -140,7 +228,7 @@
 </pre></div>
 
 <h3>
-<a name="updating-rows" class="anchor" href="#updating-rows"><span class="octicon octicon-link"></span></a>Updating rows:</h3>
+<a name="updating-rows" class="anchor" href="#updating-rows"><span class="octicon octicon-link"></span></a>Updating rows</h3>
 
 <div class="highlight highlight-python"><pre><span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">db1</span><span class="p">:</span>
     <span class="n">db1</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span>
@@ -154,14 +242,14 @@
 </pre></div>
 
 <h3>
-<a name="deleting-rows" class="anchor" href="#deleting-rows"><span class="octicon octicon-link"></span></a>Deleting rows:</h3>
+<a name="deleting-rows" class="anchor" href="#deleting-rows"><span class="octicon octicon-link"></span></a>Deleting rows</h3>
 
 <div class="highlight highlight-python"><pre><span class="n">db</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="p">(</span><span class="s">'published &gt;= </span><span class="si">%s</span><span class="s">'</span><span class="p">,</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2005</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">31</span><span class="p">)]))</span>
 <span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 </pre></div>
 
 <h3>
-<a name="insertingupdatingdeleting-rows-with-return-value" class="anchor" href="#insertingupdatingdeleting-rows-with-return-value"><span class="octicon octicon-link"></span></a>Inserting/updating/deleting rows with return value:</h3>
+<a name="insertingupdatingdeleting-rows-with-return-value" class="anchor" href="#insertingupdatingdeleting-rows-with-return-value"><span class="octicon octicon-link"></span></a>Inserting/updating/deleting rows with return value</h3>
 
 <div class="highlight highlight-python"><pre><span class="n">row</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="s">"books"</span><span class="p">,</span>
                 <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"fiction"</span><span class="p">,</span>
@@ -187,7 +275,7 @@
 </pre></div>
 
 <h3>
-<a name="fetching-a-single-record" class="anchor" href="#fetching-a-single-record"><span class="octicon octicon-link"></span></a>Fetching a single record:</h3>
+<a name="fetching-a-single-record" class="anchor" href="#fetching-a-single-record"><span class="octicon octicon-link"></span></a>Fetching a single record</h3>
 
 <div class="highlight highlight-python"><pre><span class="n">book</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">fetchone</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span> 
                    <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s">'name'</span><span class="p">,</span> <span class="s">'published'</span><span class="p">],</span> 
@@ -197,7 +285,7 @@
 </pre></div>
 
 <h3>
-<a name="fetching-multiple-records" class="anchor" href="#fetching-multiple-records"><span class="octicon octicon-link"></span></a>Fetching multiple records:</h3>
+<a name="fetching-multiple-records" class="anchor" href="#fetching-multiple-records"><span class="octicon octicon-link"></span></a>Fetching multiple records</h3>
 
 <div class="highlight highlight-python"><pre><span class="n">books</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">fetchall</span><span class="p">(</span><span class="s">'books'</span><span class="p">,</span>
                     <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s">'name AS n'</span><span class="p">,</span> <span class="s">'genre AS g'</span><span class="p">],</span>
@@ -211,7 +299,7 @@
 </pre></div>
 
 <h3>
-<a name="database-transactions" class="anchor" href="#database-transactions"><span class="octicon octicon-link"></span></a>Database transactions:</h3>
+<a name="explicit-database-transaction-management" class="anchor" href="#explicit-database-transaction-management"><span class="octicon octicon-link"></span></a>Explicit database transaction management</h3>
 
 <div class="highlight highlight-python"><pre><span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">_db</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
@@ -220,6 +308,16 @@
     <span class="k">except</span><span class="p">:</span>
         <span class="n">_db</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
 </pre></div>
+
+<h3>
+<a name="implicit-database-transaction-management" class="anchor" href="#implicit-database-transaction-management"><span class="octicon octicon-link"></span></a>Implicit database transaction management</h3>
+
+<div class="highlight highlight-python"><pre><span class="k">with</span> <span class="n">pg_simple</span><span class="o">.</span><span class="n">PgSimple</span><span class="p">()</span> <span class="k">as</span> <span class="n">_db</span><span class="p">:</span>
+    <span class="n">_db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'Some SQL statement'</span><span class="p">)</span>
+    <span class="n">_db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+
+<p>The above transaction will automatically be rolled back should something go awry.</p>
       </section>
     </div>
     <footer>
