@@ -1,8 +1,27 @@
 pg\_simple
 ==========
 
-An ultra simple wrapper over Python psycopg2 with support for basic SQL
-functionality.
+The ``pg_simple`` module provides a simple yet efficient layer over
+``psycopg2`` providing Python API for common SQL functions, explicit and
+implicit transactions management and database connection pooling for
+single and multi-threaded applications.
+
+``pg_simple`` is not intended to provide ORM-like functionality, rather
+to make it easier to interact with the PostgreSQL database from python
+code for direct SQL access using convenient wrapper methods. The module
+wraps the excellent ``psycopg2`` library and most of the functionality
+is provided by this behind the scenes.
+
+The ``pg_simple`` module provides:
+
+-  Simplified handling of database connections/cursor
+-  Connection pool for single or multithreaded access
+-  Python API to wrap basic SQL functionality: select, update, delete,
+   join et al
+-  Query results as python namedtuple and dict objects (using
+   ``psycopg2.extras.NamedTupleCursor`` and
+   ``psycopg2.extras.DictCursor`` respectively)
+-  Debug logging support
 
 Installation
 ------------
@@ -19,18 +38,43 @@ or from the source:
 
 ``python setup.py install``
 
-Basic Usage
------------
+30 Seconds Quick-start Guide
+----------------------------
 
-Initializing the connection pool:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-  Step 1: Initialize a connection pool manager using
+   ``pg_simple.config_pool()``
+-  Step 2: Create a database connection and cursor by instantiating a
+   ``pg_simple.PgSimple`` object
+
+Here's a pseudo-example to illustrate the basic concepts:
 
 .. code:: python
 
     import pg_simple
 
-    pg_simple.config_pool(max_conn=5,
-                          expiration=1, # idle timeout = 1 minute
+    pg_simple.config_pool(dsn='dbname=my_db user=my_username ...')
+
+    with pg_simple.PgSimple() as db:
+        db.insert('table_name',
+                  data={'column': 123,
+                        'another_column': 'blah blah'})
+        db.commit()
+
+    with pg_simple.PgSimple() as db1:
+        rows = db1.fetchall('table_name')
+
+Connection pool management
+--------------------------
+
+Initialize the connection pool
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: python
+
+    import pg_simple
+
+    pg_simple.config_pool(max_conn=250,
+                          expiration=60, # idle timeout = 60 seconds
                           host='localhost',
                           port=5432,
                           database='pg_simple',
@@ -41,20 +85,93 @@ or, using ``dsn``:
 
 .. code:: python
 
-    pg_simple.config_pool(max_conn=5,
-                          expiration=1,
-                          dsn='dbname=pg_simple user=postgres password=secret')
+    pg_simple.config_pool(max_conn=250,
+                          expiration=60,
+                          dsn='dbname=database_name user=postgres password=secret')
 
 or, using ``db_url``:
 
 .. code:: python
 
-    pg_simple.config_pool(max_conn=5,
-                          expiration=1,
-                          db_url= 'postgres://username:password@hostname:port/database')
+    pg_simple.config_pool(max_conn=250,
+                          expiration=60,
+                          db_url= 'postgres://username:password@hostname:numeric_port/database')
 
-Connecting to the posgtresql server:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The above snippets will create a connection pool capable of
+accommodating a maximum of 250 concurrent database connections. Once
+that limit is reached and the pool does not contain any idle
+connections, all subsequent new connection request will result in a
+``PoolError`` exception (until the pool gets refilled with idle
+connections).
+
+Take caution to properly clean up all ``pg_simple.PgSimple`` objects
+after use (wrap the object inside python try-finally block or ``with``
+statement). Once the object is released, it will quietly return the
+internal database connction to the idle pool. Failure to dispose
+``PgSimple`` properly may result in pool exhaustion error.
+
+Configure connection pool for thread-safe access
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The default ``SimpleConnectionPool`` pool manager is not thread-safe. To
+utilize the connection pool in multi-threaded apps, use the
+``ThreadedConnectionPool``:
+
+.. code:: python
+
+    pg_simple.config_pool(max_conn=250,
+                          expiration=60,
+                          pool_manager=ThreadedConnectionPool,
+                          dsn='...')
+
+Disable connection pooling
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To disable connection pooling completely, set the ``disable_pooling``
+parameter to True:
+
+.. code:: python
+
+    pg_simple.config_pool(disable_pooling=True, dsn='...')
+
+All database requests on this pool will create new connections on the
+fly, and all connections returned to the pool (upon disposal of
+``PgSimple`` object or by explicitly invoking ``pool.put_conn()``) will
+be discarded immediately.
+
+Obtaining the current connection pool manager
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Call the ``pg_simple.get_pool()`` method to get the current pool:
+
+.. code:: python
+
+    pool = pg_simple.get_pool()
+
+Garbage collect stale connections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To explicitly purge the pool of stale database connections (whose
+duration of stay in the pool exceeds the ``expiration`` timeout), invoke
+the ``pool.purge_expired_connections()`` method:
+
+.. code:: python
+
+    pool = pg_simple.get_pool()
+    pool.purge_expired_connections()
+
+Note that the pool is automatically scavenged for stale connections when
+an idle connection is returned to the pool (using the
+``pool.put_conn()`` method).
+
+Basic Usage
+-----------
+
+Connecting to the posgtresql server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following snippet will connect to the posgtresql server and allocate
+a cursor:
 
 .. code:: python
 
@@ -65,16 +182,27 @@ Connecting to the posgtresql server:
                             log_fmt=lambda x: '>> %s' % (x if isinstance(x, str) else x.query),
                             nt_cursor=True)
 
-Raw SQL execution:
-~~~~~~~~~~~~~~~~~~
+By default ``PgSimple`` generates result sets as
+``collections.namedtuple`` objects (using
+``psycopg2.extras.NamedTupleCursor``). If you want to access the
+retrieved records using an interface similar to the Python dictionaries
+(using ``psycopg2.extras.DictCursor``), set the ``nt_cursor`` parameter
+to ``False``:
+
+.. code:: python
+
+    db = pg_simple.PgSimple(nt_cursor=False)
+
+Raw SQL execution
+~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
     >>> db.execute('SELECT tablename FROM pg_tables WHERE schemaname=%s and tablename=%s', ['public', 'books'])
     <cursor object at 0x102352a50; closed: 0>
 
-Dropping and creating tables:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dropping and creating tables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -92,9 +220,10 @@ Dropping and creating tables:
     )
 
     db.execute('''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")''')
+    db.commit()
 
-Emptying a table or set of tables:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Emptying a table or set of tables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -102,8 +231,8 @@ Emptying a table or set of tables:
     db.truncate('tbl2, tbl3', restart_identity=True, cascade=True)
     db.commit()
 
-Inserting a row:
-~~~~~~~~~~~~~~~~
+Inserting rows
+~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -116,8 +245,8 @@ Inserting a row:
 
     db.commit()
 
-Updating rows:
-~~~~~~~~~~~~~~
+Updating rows
+~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -131,16 +260,16 @@ Updating rows:
                    
         db1.commit()
 
-Deleting rows:
-~~~~~~~~~~~~~~
+Deleting rows
+~~~~~~~~~~~~~
 
 .. code:: python
 
     db.delete('books', where=('published >= %s', [datetime.date(2005, 1, 31)]))
     db.commit()
 
-Inserting/updating/deleting rows with return value:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Inserting/updating/deleting rows with return value
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -166,8 +295,8 @@ Inserting/updating/deleting rows with return value:
     for r in rows:
         print(r.name)
 
-Fetching a single record:
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Fetching a single record
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -177,8 +306,8 @@ Fetching a single record:
                        
     print(book.name + 'was published on ' + book[1])
 
-Fetching multiple records:
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fetching multiple records
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -192,8 +321,8 @@ Fetching multiple records:
     for book in books:
         print(book.n + 'belongs to ' + book[1])
 
-Database transactions:
-~~~~~~~~~~~~~~~~~~~~~~
+Explicit database transaction management
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -204,3 +333,14 @@ Database transactions:
         except:
             _db.rollback()
 
+Implicit database transaction management
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: python
+
+    with pg_simple.PgSimple() as _db:
+        _db.execute('Some SQL statement')
+        _db.commit()
+
+The above transaction will automatically be rolled back should something
+go awry.

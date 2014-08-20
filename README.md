@@ -30,7 +30,7 @@ or from the source:
 
 ##30 Seconds Quick-start Guide
 
-* Step 1: Configure a connection pool using `pg_simple.config_pool()`
+* Step 1: Initialize a connection pool manager using `pg_simple.config_pool()`
 * Step 2: Create a database connection and cursor by instantiating a `pg_simple.PgSimple` object
 
 Here's a pseudo-example to illustrate the basic concepts:
@@ -41,9 +41,9 @@ import pg_simple
 pg_simple.config_pool(dsn='dbname=my_db user=my_username ...')
 
 with pg_simple.PgSimple() as db:
-    row = db.insert('table_name',
-                    data={'column': 123,
-                          'another_column': 'data'})
+    db.insert('table_name',
+              data={'column': 123,
+                    'another_column': 'blah blah'})
     db.commit()
 
 with pg_simple.PgSimple() as db1:
@@ -51,9 +51,9 @@ with pg_simple.PgSimple() as db1:
 ```
 
 
-## Basic Usage
+##Connection pool management
 
-### Initializing the connection pool
+###Initialize the connection pool
 
 ```python
 import pg_simple
@@ -81,7 +81,7 @@ or, using `db_url`:
 ```python
 pg_simple.config_pool(max_conn=250,
                       expiration=60,
-                      db_url= 'postgres://username:password@hostname:port/database')
+                      db_url= 'postgres://username:password@hostname:numeric_port/database')
 
 ```
 
@@ -89,7 +89,10 @@ The above snippets will create a connection pool capable of accommodating a maxi
 
 Take caution to properly clean up all `pg_simple.PgSimple` objects after use (wrap the object inside python try-finally block or `with` statement). Once the object is released, it will quietly return the internal database connction to the idle pool. Failure to dispose `PgSimple` properly may result in pool exhaustion error.
 
-To configure the connection pool for use in multi-threaded apps, use the `ThreadedConnectionPool`:
+
+###Configure connection pool for thread-safe access
+
+The default `SimpleConnectionPool` pool manager is not thread-safe. To utilize the connection pool in multi-threaded apps, use the `ThreadedConnectionPool`:
 
 ```python
 pg_simple.config_pool(max_conn=250,
@@ -98,7 +101,8 @@ pg_simple.config_pool(max_conn=250,
                       dsn='...')
 ```
 
-Note: The default pool manager `SimpleConnectionPool` is not thread-safe.
+
+###Disable connection pooling
 
 To disable connection pooling completely, set the `disable_pooling` parameter to True:
 
@@ -106,8 +110,31 @@ To disable connection pooling completely, set the `disable_pooling` parameter to
 pg_simple.config_pool(disable_pooling=True, dsn='...')
 ```
 
-All database requests on this pool will create new connections on the fly, and all connections returned to the pool (upon `PgSimple` disposal or by explicitly invoking `pool.put_conn()`) will be discarded immediately.
+All database requests on this pool will create new connections on the fly, and all connections returned to the pool (upon disposal of `PgSimple` object or by explicitly invoking `pool.put_conn()`) will be discarded immediately.
 
+
+###Obtaining the current connection pool manager
+
+Call the `pg_simple.get_pool()` method to get the current pool:
+
+```python
+pool = pg_simple.get_pool()
+```
+
+
+###Garbage collect stale connections
+
+To explicitly purge the pool of stale database connections (whose duration of stay in the pool exceeds the `expiration` timeout), invoke the `pool.purge_expired_connections()` method:
+
+```python
+pool = pg_simple.get_pool()
+pool.purge_expired_connections()
+```
+
+Note that the pool is automatically scavenged for stale connections when an idle connection is returned to the pool (using the `pool.put_conn()` method).
+
+
+## Basic Usage
 
 ### Connecting to the posgtresql server
 

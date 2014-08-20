@@ -1,39 +1,11 @@
 Basic Usage
 -----------
 
-Initializing the connection pool:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Connecting to the posgtresql server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code:: python
-
-    import pg_simple
-
-    pg_simple.config_pool(max_conn=5,
-                          expiration=1, # idle timeout = 1 minute
-                          host='localhost',
-                          port=5432,
-                          database='pg_simple',
-                          user='postgres',
-                          password='secret')
-
-or, using ``dsn``:
-
-.. code:: python
-
-    pg_simple.config_pool(max_conn=5,
-                          expiration=1,
-                          dsn='dbname=pg_simple user=postgres password=secret')
-
-or, using ``db_url``:
-
-.. code:: python
-
-    pg_simple.config_pool(max_conn=5,
-                          expiration=1,
-                          db_url= 'postgres://username:password@hostname:port/database')
-
-Connecting to the posgtresql server:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The following snippet will connect to the posgtresql server and allocate
+a cursor:
 
 .. code:: python
 
@@ -44,16 +16,27 @@ Connecting to the posgtresql server:
                             log_fmt=lambda x: '>> %s' % (x if isinstance(x, str) else x.query),
                             nt_cursor=True)
 
-Raw SQL execution:
-~~~~~~~~~~~~~~~~~~
+By default ``PgSimple`` generates result sets as
+``collections.namedtuple`` objects (using
+``psycopg2.extras.NamedTupleCursor``). If you want to access the
+retrieved records using an interface similar to the Python dictionaries
+(using ``psycopg2.extras.DictCursor``), set the ``nt_cursor`` parameter
+to ``False``:
+
+.. code:: python
+
+    db = pg_simple.PgSimple(nt_cursor=False)
+
+Raw SQL execution
+~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
     >>> db.execute('SELECT tablename FROM pg_tables WHERE schemaname=%s and tablename=%s', ['public', 'books'])
     <cursor object at 0x102352a50; closed: 0>
 
-Dropping and creating tables:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dropping and creating tables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -71,9 +54,10 @@ Dropping and creating tables:
     )
 
     db.execute('''ALTER TABLE "books" ADD CONSTRAINT "books_pkey" PRIMARY KEY ("id")''')
+    db.commit()
 
-Emptying a table or set of tables:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Emptying a table or set of tables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -81,8 +65,8 @@ Emptying a table or set of tables:
     db.truncate('tbl2, tbl3', restart_identity=True, cascade=True)
     db.commit()
 
-Inserting a row:
-~~~~~~~~~~~~~~~~
+Inserting rows
+~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -95,8 +79,8 @@ Inserting a row:
 
     db.commit()
 
-Updating rows:
-~~~~~~~~~~~~~~
+Updating rows
+~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -110,16 +94,16 @@ Updating rows:
                    
         db1.commit()
 
-Deleting rows:
-~~~~~~~~~~~~~~
+Deleting rows
+~~~~~~~~~~~~~
 
 .. code:: python
 
     db.delete('books', where=('published >= %s', [datetime.date(2005, 1, 31)]))
     db.commit()
 
-Inserting/updating/deleting rows with return value:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Inserting/updating/deleting rows with return value
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -145,8 +129,8 @@ Inserting/updating/deleting rows with return value:
     for r in rows:
         print(r.name)
 
-Fetching a single record:
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Fetching a single record
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -156,8 +140,8 @@ Fetching a single record:
                        
     print(book.name + 'was published on ' + book[1])
 
-Fetching multiple records:
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fetching multiple records
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -171,8 +155,8 @@ Fetching multiple records:
     for book in books:
         print(book.n + 'belongs to ' + book[1])
 
-Database transactions:
-~~~~~~~~~~~~~~~~~~~~~~
+Explicit database transaction management
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -182,3 +166,15 @@ Database transactions:
             _db.commit()
         except:
             _db.rollback()
+
+Implicit database transaction management
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: python
+
+    with pg_simple.PgSimple() as _db:
+        _db.execute('Some SQL statement')
+        _db.commit()
+
+The above transaction will automatically be rolled back should something
+go awry.
