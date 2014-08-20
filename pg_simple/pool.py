@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 __author__ = 'Erick Almeida and Masroor Ehsan'
 
 import urlparse
@@ -27,22 +26,20 @@ class AbstractConnectionPool(object):
         self.expiration = expiration
         self.max_conn = max_conn
         self._debug = kwargs.get('debug', False)
-        self._disable_pooling = disable_pooling # do not pool database connections
+        self._disable_pooling = disable_pooling  # do not pool database connections
         if self._debug:
-            self._log_msg_suffix = '\n' if not hasattr(self._debug, 'debug') else ''
             self._debug_fn = self._debug.debug if hasattr(self._debug, 'debug') else self._debug.write
+            self._debug_msg_suffix = '\n' if not hasattr(self._debug, 'debug') else ''
         if 'debug' in kwargs:
             del kwargs['debug']
         self._db_config = kwargs
         self._dsn = kwargs.get('dsn', None)
 
     def _log_internal(self, msg):
-        """
-        Debugging information logging.
-        """
+        """Debugging information logging."""
         if self._debug:
             curr_thr = threading.currentThread()
-            self._debug_fn('[%d:%s] %s%s' % (os.getpid(), curr_thr.name, msg, self._log_msg_suffix))
+            self._debug_fn('[%d:%s] %s%s' % (os.getpid(), curr_thr.name, msg, self._debug_msg_suffix))
 
     def _connect(self, key=None):
         """Create a new connection and assign it to 'key' if not None."""
@@ -282,20 +279,20 @@ def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=S
 
     if dsn:
         __pool_manager__ = pool_manager(expiration=expiration,
-                                max_conn=max_conn,
-                                disable_pooling=disable_pooling,
-                                dsn=dsn,
-                                debug=debug)
+                                        max_conn=max_conn,
+                                        disable_pooling=disable_pooling,
+                                        dsn=dsn,
+                                        debug=debug)
     else:
         __pool_manager__ = pool_manager(expiration=expiration,
-                                max_conn=max_conn,
-                                disable_pooling=disable_pooling,
-                                database=config['database'],
-                                host=config.get('host'),
-                                port=config.get('port'),
-                                user=config.get('user'),
-                                password=config.get('password'),
-                                debug=debug)
+                                        max_conn=max_conn,
+                                        disable_pooling=disable_pooling,
+                                        database=config['database'],
+                                        host=config.get('host'),
+                                        port=config.get('port'),
+                                        user=config.get('user'),
+                                        password=config.get('password'),
+                                        debug=debug)
 
 
 def get_pool():
