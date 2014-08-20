@@ -94,7 +94,7 @@ class AbstractConnectionPool(object):
                 raise PoolError('Connection pool exhausted')
             return self._connect(key)
 
-    def purge_expired_connections(self):
+    def _purge_expired_connections(self):
         if self._disable_pooling:
             return
 
@@ -149,7 +149,7 @@ class AbstractConnectionPool(object):
             self._log('Closing (pool exhausted or explicit close requested) %s' % conn)
             self._release(conn)
 
-        self.purge_expired_connections()
+        self._purge_expired_connections()
 
         # here we check for the presence of key because it can happen that a
         # thread tries to put back a connection after a call to close
@@ -204,6 +204,7 @@ class SimpleConnectionPool(AbstractConnectionPool):
     get_conn = AbstractConnectionPool._get_conn
     put_conn = AbstractConnectionPool._put_conn
     release_all = AbstractConnectionPool._release_all
+    purge_expired_connections = AbstractConnectionPool._purge_expired_connections
     _log = AbstractConnectionPool._log_internal
 
 
@@ -239,6 +240,14 @@ class ThreadedConnectionPool(AbstractConnectionPool):
         self._lock.acquire()
         try:
             self._put_conn(conn, key, close, fail_silently)
+        finally:
+            self._lock.release()
+
+    def purge_expired_connections(self):
+        """Purge all stale connections."""
+        self._lock.acquire()
+        try:
+            self._purge_expired_connections()
         finally:
             self._lock.release()
 
