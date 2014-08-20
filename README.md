@@ -294,4 +294,4 @@ with pg_simple.PgSimple() as _db:
     _db.commit()
 ```
 
-The above transaction will automatically be rolled back should something go awry.
+The above transaction will be rolled back automatically should something goes awry.
