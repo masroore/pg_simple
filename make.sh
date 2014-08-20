@@ -5,7 +5,7 @@ echo "Generating README.rst"
 pandoc --from=markdown --to=rst --toc --output=README.rst README.md
 
 echo "Building and updloading python egg"
-python setup.py bdist_egg upload
+python setup.py sdist bdist_egg upload
 
 echo "Generating HTML documentation"
 cd docs
