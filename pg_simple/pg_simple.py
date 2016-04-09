@@ -32,7 +32,7 @@ class PgSimple(object):
         try:
             self._connection = self._pool.get_conn()
             self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)
-        except Exception, e:
+        except Exception as e:
             self._log_error('postgresql connection failed: ' + e.message)
             raise
 
@@ -143,7 +143,7 @@ class PgSimple(object):
             self._cursor.execute(sql, params)
             if self._log and self._log_fmt:
                 self._log_cursor(self._cursor)
-        except Exception, e:
+        except Exception as e:
             if self._log and self._log_fmt:
                 self._log_error('execute() failed: ' + e.message)
             raise
