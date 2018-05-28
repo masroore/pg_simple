@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Erick Almeida and Masroor Ehsan'
 
-import urlparse
+from urllib.parse import urlparse
 import os
 import gc
 import threading
@@ -273,7 +273,7 @@ def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=S
 
     if not dsn:
         if db_url:
-            params = urlparse.urlparse(db_url)
+            params = urlparse(db_url)
             config = {'database': params.path[1:],
                       'user': params.username,
                       'password': params.password,

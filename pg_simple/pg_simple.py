@@ -8,7 +8,7 @@ import os
 
 from psycopg2.extras import DictCursor, NamedTupleCursor
 
-import pool
+import pg_simple.pool as pool
 
 
 class PgSimple(object):

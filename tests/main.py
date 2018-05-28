@@ -165,7 +165,7 @@ class PgSimpleThreadedTestCase(AbstractPgSimpleTestCase):
         with pg_simple.PgSimple() as db:
             self._drop_tables(db)
 
-        print "Exiting Main Thread \n"
+        print("Exiting Main Thread \n")
 
 
 if __name__ == '__main__':
