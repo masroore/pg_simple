@@ -116,7 +116,7 @@ class PgSimple(object):
         cols, vals = self._format_insert(data)
         sql = 'INSERT INTO %s (%s) VALUES(%s)' % (table, cols, vals)
         sql += self._returning(returning)
-        cur = self.execute(sql, data.values())
+        cur = self.execute(sql, list(data.values()))
         return cur.fetchone() if returning else cur.rowcount
 
     def update(self, table, data, where=None, returning=None):
@@ -125,7 +125,7 @@ class PgSimple(object):
 
         sql = 'UPDATE %s SET %s' % (table, query)
         sql += self._where(where) + self._returning(returning)
-        cur = self.execute(sql, data.values() + where[1] if where and len(where) > 1 else data.values())
+        cur = self.execute(sql, list(data.values()) + where[1] if where and len(where) > 1 else list(data.values()))
         return cur.fetchall() if returning else cur.rowcount
 
     def delete(self, table, where=None, returning=None):
