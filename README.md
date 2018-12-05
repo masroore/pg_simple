@@ -28,7 +28,7 @@ or from the source:
 ```python setup.py install```
 
 
-##30 Seconds Quick-start Guide
+## 30 Seconds Quick-start Guide
 
 * Step 1: Initialize a connection pool manager using `pg_simple.config_pool()`
 * Step 2: Create a database connection and cursor by instantiating a `pg_simple.PgSimple` object
@@ -51,9 +51,10 @@ with pg_simple.PgSimple() as db1:
 ```
 
 
-##Connection pool management
+## Connection pool management
 
-###Initialize the connection pool
+### Initialize the connection pool
+
 
 ```python
 import pg_simple
@@ -90,7 +91,7 @@ The above snippets will create a connection pool capable of accommodating a maxi
 Take caution to properly clean up all `pg_simple.PgSimple` objects after use (wrap the object inside python try-finally block or `with` statement). Once the object is released, it will quietly return the internal database connction to the idle pool. Failure to dispose `PgSimple` properly may result in pool exhaustion error.
 
 
-###Configure connection pool for thread-safe access
+### Configure connection pool for thread-safe access
 
 The default `SimpleConnectionPool` pool manager is not thread-safe. To utilize the connection pool in multi-threaded apps, use the `ThreadedConnectionPool`:
 
@@ -102,7 +103,7 @@ pg_simple.config_pool(max_conn=250,
 ```
 
 
-###Disable connection pooling
+### Disable connection pooling
 
 To disable connection pooling completely, set the `disable_pooling` parameter to True:
 
@@ -113,7 +114,7 @@ pg_simple.config_pool(disable_pooling=True, dsn='...')
 All database requests on this pool will create new connections on the fly, and all connections returned to the pool (upon disposal of `PgSimple` object or by explicitly invoking `pool.put_conn()`) will be discarded immediately.
 
 
-###Obtaining the current connection pool manager
+### Obtaining the current connection pool manager
 
 Call the `pg_simple.get_pool()` method to get the current pool:
 
@@ -122,7 +123,7 @@ pool = pg_simple.get_pool()
 ```
 
 
-###Garbage collect stale connections
+### Garbage collect stale connections
 
 To explicitly purge the pool of stale database connections (whose duration of stay in the pool exceeds the `expiration` timeout), invoke the `pool.purge_expired_connections()` method:
 
