@@ -53,15 +53,15 @@ Here's a pseudo-example to illustrate the basic concepts:
 
     import pg_simple
 
-    pg_simple.config_pool(dsn='dbname=my_db user=my_username ...')
+    connection_pool = pg_simple.config_pool(dsn='dbname=my_db user=my_username ...')
 
-    with pg_simple.PgSimple() as db:
+    with pg_simple.PgSimple(connection_pool) as db:
         db.insert('table_name',
                   data={'column': 123,
                         'another_column': 'blah blah'})
         db.commit()
 
-    with pg_simple.PgSimple() as db1:
+    with pg_simple.PgSimple(connection_pool) as db1:
         rows = db1.fetchall('table_name')
 
 Connection pool management
@@ -74,7 +74,7 @@ Initialize the connection pool
 
     import pg_simple
 
-    pg_simple.config_pool(max_conn=250,
+    connection_pool = pg_simple.config_pool(max_conn=250,
                           expiration=60, # idle timeout = 60 seconds
                           host='localhost',
                           port=5432,
@@ -86,7 +86,7 @@ or, using ``dsn``:
 
 .. code:: python
 
-    pg_simple.config_pool(max_conn=250,
+    connection_pool = pg_simple.config_pool(max_conn=250,
                           expiration=60,
                           dsn='dbname=database_name user=postgres password=secret')
 
@@ -94,7 +94,7 @@ or, using ``db_url``:
 
 .. code:: python
 
-    pg_simple.config_pool(max_conn=250,
+    connection_pool = pg_simple.config_pool(max_conn=250,
                           expiration=60,
                           db_url= 'postgres://username:password@hostname:numeric_port/database')
 
@@ -111,6 +111,23 @@ statement). Once the object is released, it will quietly return the
 internal database connction to the idle pool. Failure to dispose
 ``PgSimple`` properly may result in pool exhaustion error.
 
+Configure multiple connection pools
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To generate different connection pools simply define each connection:
+
+.. code:: python
+
+    connection_pool_1 = pg_simple.config_pool(max_conn=250,
+                          expiration=60,
+                          dsn='dbname=database_name_1 user=postgres1 password=secret1')
+
+    connection_pool_2 = pg_simple.config_pool(max_conn=250,
+                          expiration=60,
+                          dsn='dbname=database_name_2 user=postgres2 password=secret2')
+
+After that you can use each connection pool object to generate connections to the databases as you would with only one connection.
+You can define as many of connection pool objects as your systems can handle and also both types (``SimpleConnectionPool`` and ``ThreadedConnectionPool``) at the same time.
+
 Configure connection pool for thread-safe access
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -120,7 +137,7 @@ utilize the connection pool in multi-threaded apps, use the
 
 .. code:: python
 
-    pg_simple.config_pool(max_conn=250,
+    connection_pool = pg_simple.config_pool(max_conn=250,
                           expiration=60,
                           pool_manager=ThreadedConnectionPool,
                           dsn='...')
@@ -133,21 +150,12 @@ parameter to True:
 
 .. code:: python
 
-    pg_simple.config_pool(disable_pooling=True, dsn='...')
+    connection_pool = pg_simple.config_pool(disable_pooling=True, dsn='...')
 
 All database requests on this pool will create new connections on the
 fly, and all connections returned to the pool (upon disposal of
 ``PgSimple`` object or by explicitly invoking ``pool.put_conn()``) will
 be discarded immediately.
-
-Obtaining the current connection pool manager
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Call the ``pg_simple.get_pool()`` method to get the current pool:
-
-.. code:: python
-
-    pool = pg_simple.get_pool()
 
 Garbage collect stale connections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,8 +166,8 @@ the ``pool.purge_expired_connections()`` method:
 
 .. code:: python
 
-    pool = pg_simple.get_pool()
-    pool.purge_expired_connections()
+
+    connection_pool.purge_expired_connections()
 
 Note that the pool is automatically scavenged for stale connections when
 an idle connection is returned to the pool (using the
@@ -179,7 +187,7 @@ a cursor:
     import sys
     import pg_simple
 
-    db = pg_simple.PgSimple(log=sys.stdout,
+    db = pg_simple.PgSimple(connection_pool, log=sys.stdout,
                             log_fmt=lambda x: '>> %s' % (x if isinstance(x, str) else x.query),
                             nt_cursor=True)
 
@@ -192,7 +200,7 @@ to ``False``:
 
 .. code:: python
 
-    db = pg_simple.PgSimple(nt_cursor=False)
+    db = pg_simple.PgSimple(connection_pool, nt_cursor=False)
 
 Raw SQL execution
 ~~~~~~~~~~~~~~~~~
@@ -251,7 +259,7 @@ Updating rows
 
 .. code:: python
 
-    with pg_simple.PgSimple() as db1:
+    with pg_simple.PgSimple(connection_pool) as db1:
         db1.update('books',
                    data={'name': 'An expensive book',
                          'price': 998.997,
@@ -327,7 +335,7 @@ Explicit database transaction management
 
 .. code:: python
 
-    with pg_simple.PgSimple() as _db:
+    with pg_simple.PgSimple(connection_pool) as _db:
         try:
             _db.execute('Some SQL statement')
             _db.commit()
@@ -339,7 +347,7 @@ Implicit database transaction management
 
 .. code:: python
 
-    with pg_simple.PgSimple() as _db:
+    with pg_simple.PgSimple(connection_pool) as _db:
         _db.execute('Some SQL statement')
         _db.commit()
 
