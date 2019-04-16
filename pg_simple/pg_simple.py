@@ -8,8 +8,6 @@ import os
 
 from psycopg2.extras import DictCursor, NamedTupleCursor
 
-import pg_simple.pool as pool
-
 
 class PgSimple(object):
     _connection = None
@@ -19,16 +17,15 @@ class PgSimple(object):
     _cursor_factory = None
     _pool = None
 
-    def __init__(self, log=None, log_fmt=None, nt_cursor=True):
+    def __init__(self, pool, log=None, log_fmt=None, nt_cursor=True):
         self._log = log
         self._log_fmt = log_fmt
         self._cursor_factory = NamedTupleCursor if nt_cursor else DictCursor
-
+        self._pool = pool
         self._connect()
 
     def _connect(self):
         """Connect to the postgres server"""
-        self._pool = pool.get_pool()
         try:
             self._connection = self._pool.get_conn()
             self._cursor = self._connection.cursor(cursor_factory=self._cursor_factory)

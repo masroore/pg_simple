@@ -260,11 +260,11 @@ class ThreadedConnectionPool(AbstractConnectionPool):
             self._lock.release()
 
 
-__pool_manager__ = None
+
 
 
 def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=SimpleConnectionPool, **kwargs):
-    global __pool_manager__
+
 
     config = None
     dsn = kwargs.get('dsn', os.environ.get('DATABASE_DSN'))
@@ -287,13 +287,13 @@ def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=S
         raise Exception('No database configuration provided')
 
     if dsn:
-        __pool_manager__ = pool_manager(expiration=expiration,
+        return pool_manager(expiration=expiration,
                                         max_conn=max_conn,
                                         disable_pooling=disable_pooling,
                                         dsn=dsn,
                                         debug=debug)
     else:
-        __pool_manager__ = pool_manager(expiration=expiration,
+        return pool_manager(expiration=expiration,
                                         max_conn=max_conn,
                                         disable_pooling=disable_pooling,
                                         database=config['database'],
@@ -304,5 +304,5 @@ def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=S
                                         debug=debug)
 
 
-def get_pool():
-    return __pool_manager__
+# def get_pool():
+#     return __pool_manager__
