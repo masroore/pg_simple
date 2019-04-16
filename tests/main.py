@@ -28,7 +28,7 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
 
     def setUp(self):
         super(AbstractPgSimpleTestCase, self).setUp()
-        pg_simple.config_pool(max_conn=25,
+        self.pool = pg_simple.config_pool(max_conn=25,
                               expiration=5,
                               pool_manager=self._get_pool_manager(),
                               dsn=TEST_DB_DSN)
@@ -69,7 +69,7 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
         import doctest
         import sys
 
-        db = pg_simple.PgSimple()
+        db = pg_simple.PgSimple(self.pool)
         if sys.argv.count('--interact'):
             db.log = sys.stdout
             code.interact(local=locals())
@@ -95,7 +95,7 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
         import code
         import sys
 
-        with pg_simple.PgSimple() as db:
+        with pg_simple.PgSimple(self.pool) as db:
             if sys.argv.count('--interact'):
                 db.log = sys.stdout
                 code.interact(local=locals())
@@ -103,7 +103,7 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
                 self._drop_tables(db)
                 self._create_tables(db, fill=True)
 
-        with pg_simple.PgSimple() as db:
+        with pg_simple.PgSimple(self.pool) as db:
             try:
                 self._check_table(db, 'pg_t1')
             finally:
@@ -129,7 +129,7 @@ class PgSimpleThread(threading.Thread):
         print('Exiting %s' % self.name)
 
     def database_operations(self):
-        with pg_simple.PgSimple() as db:
+        with pg_simple.PgSimple(self.test_cls.pool) as db:
             self.test_cls._check_table(db, 'pg_t1')
             self.test_cls._truncate_tables(db)
             self.test_cls._populate_tables(db)
@@ -142,7 +142,7 @@ class PgSimpleThreadedTestCase(AbstractPgSimpleTestCase):
         return pg_simple.ThreadedConnectionPool
 
     def test_threaded_connections(self):
-        with pg_simple.PgSimple() as db:
+        with pg_simple.PgSimple(self.pool) as db:
             self._drop_tables(db)
             self._create_tables(db, fill=True)
 
@@ -162,7 +162,7 @@ class PgSimpleThreadedTestCase(AbstractPgSimpleTestCase):
             t.join()
 
         # Drop tables
-        with pg_simple.PgSimple() as db:
+        with pg_simple.PgSimple(self.pool) as db:
             self._drop_tables(db)
 
         print("Exiting Main Thread \n")
