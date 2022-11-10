@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-__author__ = 'Erick Almeida and Masroor Ehsan'
+__author__ = "Erick Almeida and Masroor Ehsan"
 
-from urllib.parse import urlparse
-import os
 import gc
+import os
 import threading
 import time
+from urllib.parse import urlparse
 
 import psycopg2
 import psycopg2.extensions as _ext
@@ -25,21 +25,28 @@ class AbstractConnectionPool(object):
         self._disposed = False
         self.expiration = expiration
         self.max_conn = max_conn
-        self._debug = kwargs.get('debug', False)
+        self._debug = kwargs.get("debug", False)
         self._disable_pooling = disable_pooling  # do not pool database connections
         if self._debug:
-            self._debug_fn = self._debug.debug if hasattr(self._debug, 'debug') else self._debug.write
-            self._debug_msg_suffix = '\n' if not hasattr(self._debug, 'debug') else ''
-        if 'debug' in kwargs:
-            del kwargs['debug']
+            self._debug_fn = (
+                self._debug.debug
+                if hasattr(self._debug, "debug")
+                else self._debug.write
+            )
+            self._debug_msg_suffix = "\n" if not hasattr(self._debug, "debug") else ""
+        if "debug" in kwargs:
+            del kwargs["debug"]
         self._db_config = kwargs
-        self._dsn = kwargs.get('dsn', None)
+        self._dsn = kwargs.get("dsn", None)
 
     def _log_internal(self, msg):
         """Debugging information logging."""
         if self._debug:
             curr_thr = threading.currentThread()
-            self._debug_fn('[%d:%s] %s%s' % (os.getpid(), curr_thr.name, msg, self._debug_msg_suffix))
+            self._debug_fn(
+                "[%d:%s] %s%s"
+                % (os.getpid(), curr_thr.name, msg, self._debug_msg_suffix)
+            )
 
     def _connect(self, key=None):
         """Create a new connection and assign it to 'key' if not None."""
@@ -56,7 +63,7 @@ class AbstractConnectionPool(object):
             else:
                 self._pool.append(conn)
 
-        self._log('Connection created %s' % conn)
+        self._log("Connection created %s" % conn)
         return conn
 
     def _release(self, conn, remove_from_pool=False):
@@ -64,7 +71,7 @@ class AbstractConnectionPool(object):
             self._pool.remove(conn)
             del self._tused[id(conn)]
         conn.close()
-        self._log('Connection closed: %s [pool: %d]' % (conn, len(self._pool)))
+        self._log("Connection closed: %s [pool: %d]" % (conn, len(self._pool)))
 
     def _get_key(self):
         """Return a new unique key."""
@@ -74,7 +81,7 @@ class AbstractConnectionPool(object):
     def _get_conn(self, key=None):
         """Get a free connection and assign it to 'key' if not None."""
         if self._disposed:
-            raise PoolError('Connection pool is disposed')
+            raise PoolError("Connection pool is disposed")
 
         if self._disable_pooling:
             return self._connect(key)
@@ -91,7 +98,7 @@ class AbstractConnectionPool(object):
             return conn
         else:
             if len(self._used) == self.max_conn:
-                raise PoolError('Connection pool exhausted')
+                raise PoolError("Connection pool exhausted")
             return self._connect(key)
 
     def _purge_expired_connections(self):
@@ -106,7 +113,9 @@ class AbstractConnectionPool(object):
             if elapsed >= self.expiration:
                 expiry_list.append(item)
 
-        self._log('Purging... [pool: %d, expired: %d]' % (len(self._pool), len(expiry_list)))
+        self._log(
+            "Purging... [pool: %d, expired: %d]" % (len(self._pool), len(expiry_list))
+        )
         for item in expiry_list:
             self._release(item, True)
 
@@ -116,16 +125,16 @@ class AbstractConnectionPool(object):
             self._release(conn)
             return
 
-        self._log('Putting away %s%s' % (conn, ' key=' + key if key else ''))
+        self._log("Putting away %s%s" % (conn, " key=" + key if key else ""))
         if self._disposed:
             if fail_silently:
                 return
-            raise PoolError('Connection pool is disposed')
+            raise PoolError("Connection pool is disposed")
 
         if key is None:
             key = self._rused.get(id(conn))
         if not key:
-            raise PoolError('Trying to put un-keyed connection')
+            raise PoolError("Trying to put un-keyed connection")
 
         if len(self._pool) < self.max_conn and not close:
             # Return the connection into a consistent state before putting
@@ -134,11 +143,11 @@ class AbstractConnectionPool(object):
                 status = conn.get_transaction_status()
                 if status == _ext.TRANSACTION_STATUS_UNKNOWN:
                     # server connection lost
-                    self._log('Connection lost. Closing %s' % conn)
+                    self._log("Connection lost. Closing %s" % conn)
                     self._release(conn.close)
                 elif status != _ext.TRANSACTION_STATUS_IDLE:
                     # connection in error or in transaction
-                    self._log('Connection is in transaction. Rolling back %s' % conn)
+                    self._log("Connection is in transaction. Rolling back %s" % conn)
                     conn.rollback()
                     self._pool.append(conn)
                 else:
@@ -146,7 +155,7 @@ class AbstractConnectionPool(object):
                     self._pool.append(conn)
                     # If the connection is closed, we just discard it.
         else:
-            self._log('Closing (pool exhausted or explicit close requested) %s' % conn)
+            self._log("Closing (pool exhausted or explicit close requested) %s" % conn)
             self._release(conn)
 
         self._purge_expired_connections()
@@ -174,11 +183,11 @@ class AbstractConnectionPool(object):
             return
 
         if self._disposed:
-            raise PoolError('Connection pool is disposed')
+            raise PoolError("Connection pool is disposed")
 
         if not self._disable_pooling:
             close_list = self._pool + list(self._used.values())
-            self._log('Closing %d connection(s)' % len(close_list))
+            self._log("Closing %d connection(s)" % len(close_list))
 
             for conn in close_list:
                 try:
@@ -260,48 +269,55 @@ class ThreadedConnectionPool(AbstractConnectionPool):
             self._lock.release()
 
 
-
-
-
-def config_pool(max_conn=5, expiration=60, disable_pooling=False, pool_manager=SimpleConnectionPool, **kwargs):
-
-
+def config_pool(
+    max_conn=5,
+    expiration=60,
+    disable_pooling=False,
+    pool_manager=SimpleConnectionPool,
+    **kwargs
+):
     config = None
-    dsn = kwargs.get('dsn', os.environ.get('DATABASE_DSN'))
-    db_url = kwargs.get('db_url', os.environ.get('DATABASE_URL'))
-    debug = kwargs.get('debug', False)
+    dsn = kwargs.get("dsn", os.environ.get("DATABASE_DSN"))
+    db_url = kwargs.get("db_url", os.environ.get("DATABASE_URL"))
+    debug = kwargs.get("debug", False)
 
     if not dsn:
         if db_url:
             params = urlparse(db_url)
-            config = {'database': params.path[1:],
-                      'user': params.username,
-                      'password': params.password,
-                      'host': params.hostname,
-                      'port': params.port}
+            config = {
+                "database": params.path[1:],
+                "user": params.username,
+                "password": params.password,
+                "host": params.hostname,
+                "port": params.port,
+            }
         else:
             config = kwargs
-            config['host'] = kwargs.get('host', 'localhost')
+            config["host"] = kwargs.get("host", "localhost")
 
     if not dsn and not config:
-        raise Exception('No database configuration provided')
+        raise Exception("No database configuration provided")
 
     if dsn:
-        return pool_manager(expiration=expiration,
-                                        max_conn=max_conn,
-                                        disable_pooling=disable_pooling,
-                                        dsn=dsn,
-                                        debug=debug)
+        return pool_manager(
+            expiration=expiration,
+            max_conn=max_conn,
+            disable_pooling=disable_pooling,
+            dsn=dsn,
+            debug=debug,
+        )
     else:
-        return pool_manager(expiration=expiration,
-                                        max_conn=max_conn,
-                                        disable_pooling=disable_pooling,
-                                        database=config['database'],
-                                        host=config.get('host'),
-                                        port=config.get('port'),
-                                        user=config.get('user'),
-                                        password=config.get('password'),
-                                        debug=debug)
+        return pool_manager(
+            expiration=expiration,
+            max_conn=max_conn,
+            disable_pooling=disable_pooling,
+            database=config["database"],
+            host=config.get("host"),
+            port=config.get("port"),
+            user=config.get("user"),
+            password=config.get("password"),
+            debug=debug,
+        )
 
 
 # def get_pool():

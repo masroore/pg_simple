@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 
-__author__ = 'Masroor Ehsan'
+__author__ = "Masroor Ehsan"
 
-import unittest
 import threading
 import time
+import unittest
 
 import pg_simple
 
-
-TEST_DB_DSN = 'dbname=pg_simple user=masroor'
+TEST_DB_DSN = "dbname=pg_simple user=masroor"
 
 
 class AbstractPgSimpleTestCase(unittest.TestCase):
@@ -28,34 +27,44 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
 
     def setUp(self):
         super(AbstractPgSimpleTestCase, self).setUp()
-        self.pool = pg_simple.config_pool(max_conn=25,
-                              expiration=5,
-                              pool_manager=self._get_pool_manager(),
-                              dsn=TEST_DB_DSN)
+        self.pool = pg_simple.config_pool(
+            max_conn=25,
+            expiration=5,
+            pool_manager=self._get_pool_manager(),
+            dsn=TEST_DB_DSN,
+        )
 
-        self.tables = (('pg_t1', '''id SERIAL PRIMARY KEY,
-                                   name TEXT NOT NULL,
-                                   count INTEGER NOT NULL DEFAULT 0,
-                                   active BOOLEAN NOT NULL DEFAULT true'''),
-                       ('pg_t2', '''id SERIAL PRIMARY KEY,
-                                   value TEXT NOT NULL,
-                                   pg_t1_id INTEGER NOT NULL REFERENCES pg_t1(id)'''))
+        self.tables = (
+            (
+                "pg_t1",
+                """id SERIAL PRIMARY KEY,
+                   name TEXT NOT NULL,
+                   count INTEGER NOT NULL DEFAULT 0,
+                   active BOOLEAN NOT NULL DEFAULT true""",
+            ),
+            (
+                "pg_t2",
+                """id SERIAL PRIMARY KEY,
+                   value TEXT NOT NULL,
+                   pg_t1_id INTEGER NOT NULL REFERENCES pg_t1(id)""",
+            ),
+        )
 
     def _get_pool_manager(self):
         raise NotImplementedError()
 
     def _drop_tables(self, db):
-        db.drop('pg_t1', True)
-        db.drop('pg_t2')
+        db.drop("pg_t1", True)
+        db.drop("pg_t2")
 
     def _truncate_tables(self, db):
-        db.truncate('pg_t2', restart_identity=True)
-        db.truncate('pg_t1', restart_identity=True, cascade=True)
+        db.truncate("pg_t2", restart_identity=True)
+        db.truncate("pg_t1", restart_identity=True, cascade=True)
 
     def _populate_tables(self, db):
         for i in range(26):
-            id_ = db.insert('pg_t1', {'name': chr(97 + i) * 5}, returning='id')
-            _ = db.insert('pg_t2', {'value': chr(97 + i) * 4, 'pg_t1_id': id_})
+            id_ = db.insert("pg_t1", {"name": chr(97 + i) * 5}, returning="id")
+            _ = db.insert("pg_t2", {"value": chr(97 + i) * 4, "pg_t1_id": id_})
 
     def _create_tables(self, db, fill=False):
         for (name, schema) in self.tables:
@@ -70,7 +79,7 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
         import sys
 
         db = pg_simple.PgSimple(self.pool)
-        if sys.argv.count('--interact'):
+        if sys.argv.count("--interact"):
             db.log = sys.stdout
             code.interact(local=locals())
         else:
@@ -86,17 +95,25 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
         self.assertEqual(True, True)
 
     def _check_table(self, db, table_name):
-        record = db.fetchone('pg_tables', fields=['tablename', ],
-                             where=('schemaname=%s AND tablename=%s', ['public', table_name]))
-        self.assertEqual(record is not None and record.tablename == table_name, True,
-                         'Table must exist, but was not found. Auto-commit fail.')
+        record = db.fetchone(
+            "pg_tables",
+            fields=[
+                "tablename",
+            ],
+            where=("schemaname=%s AND tablename=%s", ["public", table_name]),
+        )
+        self.assertEqual(
+            record is not None and record.tablename == table_name,
+            True,
+            "Table must exist, but was not found. Auto-commit fail.",
+        )
 
     def test_connection_auto_commit(self):
         import code
         import sys
 
         with pg_simple.PgSimple(self.pool) as db:
-            if sys.argv.count('--interact'):
+            if sys.argv.count("--interact"):
                 db.log = sys.stdout
                 code.interact(local=locals())
             else:
@@ -105,7 +122,7 @@ class AbstractPgSimpleTestCase(unittest.TestCase):
 
         with pg_simple.PgSimple(self.pool) as db:
             try:
-                self._check_table(db, 'pg_t1')
+                self._check_table(db, "pg_t1")
             finally:
                 self._drop_tables(db)
 
@@ -124,13 +141,13 @@ class PgSimpleThread(threading.Thread):
         self.test_cls = test_cls
 
     def run(self):
-        print('Starting %s' % self.name)
+        print("Starting %s" % self.name)
         self.database_operations()
-        print('Exiting %s' % self.name)
+        print("Exiting %s" % self.name)
 
     def database_operations(self):
         with pg_simple.PgSimple(self.test_cls.pool) as db:
-            self.test_cls._check_table(db, 'pg_t1')
+            self.test_cls._check_table(db, "pg_t1")
             self.test_cls._truncate_tables(db)
             self.test_cls._populate_tables(db)
 
@@ -150,7 +167,7 @@ class PgSimpleThreadedTestCase(AbstractPgSimpleTestCase):
 
         # Create new threads
         for i in range(20):
-            t = PgSimpleThread(i, 'thread-' + str(i), i, self)
+            t = PgSimpleThread(i, "thread-" + str(i), i, self)
             threads.append(t)
 
         # Start new Threads
@@ -168,5 +185,5 @@ class PgSimpleThreadedTestCase(AbstractPgSimpleTestCase):
         print("Exiting Main Thread \n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
